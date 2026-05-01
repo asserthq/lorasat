@@ -25,3 +25,6 @@ target = "thumbv7m-none-eabi"    # Cortex-M3
 rb = "run --bin"
 # `cargo rrb foo` will expand to `cargo run --release --bin foo`
 rrb = "run --release --bin"
+
+[env]
+DEFMT_LOG = "debug"

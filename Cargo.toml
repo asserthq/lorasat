@@ -13,6 +13,11 @@ version = "0.1.0"
 # test = false
 
 [[bin]]
+name = "blinky"
+path = "src/bin/blinky.rs"
+test = false
+
+[[bin]]
 name = "bitfield"
 path = "src/bin/bitfield.rs"
 test = false
