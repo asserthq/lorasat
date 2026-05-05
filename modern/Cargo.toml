@@ -12,6 +12,9 @@ version = "0.1.0"
 # name = "sat-fsw"
 # test = false
 
+[[bin]]
+name = "asp_count"
+
 # [lib]
 # harness = false
 
