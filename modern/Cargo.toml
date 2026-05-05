@@ -12,12 +12,6 @@ version = "0.1.0"
 # name = "sat-fsw"
 # test = false
 
-[[bin]]
-name = "lora_send"
-
-[[bin]]
-name = "lora_receive"
-
 # [lib]
 # harness = false
 
