@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "bare",
-    "modern",
+    "common-lib",
+    "core-firmware",
+    "sandbox",
 ]
 resolver = "3"
 
