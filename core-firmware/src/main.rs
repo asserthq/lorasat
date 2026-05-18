@@ -9,10 +9,10 @@ use embassy_time::Timer;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
-    let p = embassy_stm32::init(Default::default());
+    let pers = embassy_stm32::init(Default::default());
     info!("Hello World!");
 
-    let mut led = Output::new(p.PE13, Level::High, Speed::Low);
+    let mut led = Output::new(pers.PE13, Level::High, Speed::Low);
 
     loop {
         info!("high");
