@@ -5,17 +5,22 @@ edition = "2024"
 version = "0.1.0"
 
 [lib]
-harness = false
 
 [dependencies]
+nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
+libm = "0.2.16"
+
+
+
+
 # HAL TRAITS
-embedded-hal = "0.2.6"
-embedded-hal-bus = { version = "0.3.0", features = ["defmt-03", "async"] }
-one-wire-bus = "0.1.1"
+# embedded-hal = "0.2.6"
+# embedded-hal-bus = { version = "0.3.0", features = ["defmt-03", "async"] }
+# one-wire-bus = "0.1.1"
 
 # DRIVERS
-lora-phy = { version = "3.0.1", features = ["lorawan-radio"] }
-ds18b20 = "0.1.1"
+# lora-phy = { version = "3.0.1", features = ["lorawan-radio"] }
+# ds18b20 = "0.1.1"
 
 # LOGGER
 defmt = "1.0.1"
