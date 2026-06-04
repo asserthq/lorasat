@@ -109,6 +109,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
+<<<<<<< HEAD
 name = "cobs"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -123,6 +124,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> 034203c (Update Cargo.lock)
 name = "cordyceps"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1037,11 +1040,14 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "sim"
 version = "0.1.0"
+<<<<<<< HEAD
 dependencies = [
  "cobs",
 ]
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> 034203c (Update Cargo.lock)
 
 [[package]]
 name = "simba"
