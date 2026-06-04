@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "common-lib",
-    "core-firmware",
+    "core",
+    "firmware",
+    "sim",
     "sandbox",
 ]
 resolver = "3"

@@ -1,6 +1,6 @@
 [package]
 authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
-name = "common-lib"
+name = "core"
 edition = "2024"
 version = "0.1.0"
 

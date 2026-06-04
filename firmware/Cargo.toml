@@ -1,12 +1,12 @@
 [package]
 # TODO(1) fix `authors` and `name` if you didn't use `cargo-generate`
 authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
-name = "core-firmware"
+name = "firmware"
 edition = "2024"
 version = "0.1.0"
 
 [lib]
-name = "core_firmware_lib"
+name = "firmware_lib"
 harness = false
 
 [dependencies]
