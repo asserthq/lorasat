@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core_firmware_lib as _;
+use firmware_lib as _;
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::{Level, Output, Speed};

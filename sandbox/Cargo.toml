@@ -22,7 +22,7 @@ name = "sandbox_lib"
 harness = false
 
 [dependencies]
-common-lib = { path = "../common-lib" }
+core = { path = "../core" }
 
 embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f303vc", "unstable-pac", "memory-x", "time-driver-any", "exti" ]  }
 embassy-executor = { version = "0.10.0", features = ["platform-cortex-m", "executor-thread", "defmt"] }
