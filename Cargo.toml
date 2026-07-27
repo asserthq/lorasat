@@ -5,7 +5,7 @@ members = [
     "sim",
     "sandbox",
 ]
-resolver = "3"
+
 
 # cargo build/run
 [profile.dev]

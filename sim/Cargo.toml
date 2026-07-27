@@ -4,5 +4,8 @@ name = "sim"
 edition = "2024"
 version = "0.1.0"
 
+[[bin]]
+name = "server"
+
 [dependencies]
 cobs = "0.5.1"
