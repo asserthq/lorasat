@@ -6,15 +6,7 @@
  version = "0.1.0"
 
  [[bin]]
- name = "blinky"
- test = false
-
- [[bin]]
- name = "lora_receive"
- test = false
-
- [[bin]]
- name = "lora_send"
+ name = "sat"
  test = false
 
  [lib]

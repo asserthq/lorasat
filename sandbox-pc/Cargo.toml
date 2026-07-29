@@ -11,6 +11,6 @@ name = "sat"
 name = "client"
 
 [dependencies]
-embassy-futures = "0.1.2"
 sat_core = { package = "sat-core", path = "../core" }
+embassy-futures = "0.1.2"
 tokio = { version = "1", features = ["net", "time", "rt", "macros"] }
