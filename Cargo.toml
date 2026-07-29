@@ -1,11 +1,15 @@
 [workspace]
 members = [
     "core",
+    "drivers",
     "firmware",
-    "sim",
-    "sandbox",
+
+    "sandbox-mcu",
+    "sandbox-pc",
+    "sim"
 ]
 
+resolver = "3"
 
 # cargo build/run
 [profile.dev]

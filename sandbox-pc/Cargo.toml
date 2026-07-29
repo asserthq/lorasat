@@ -1,0 +1,16 @@
+[package]
+authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
+name = "sandbox-pc"
+edition = "2024"
+version = "0.1.0"
+
+[[bin]]
+name = "sat"
+
+[[bin]]
+name = "client"
+
+[dependencies]
+embassy-futures = "0.1.2"
+sat_core = { package = "sat-core", path = "../core" }
+tokio = { version = "1", features = ["net", "time", "rt", "macros"] }

@@ -1,0 +1,18 @@
+[package]
+authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
+name = "sat-drivers"
+edition = "2024"
+version = "0.1.0"
+
+[lib]
+
+[dependencies]
+sat_core = { package = "sat-core", path = "../core" }
+
+defmt = "1.0.1"
+embassy-time = "0.5.1"
+embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
+embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
+embedded-hal-bus = { version = "0.3.0", features = ["defmt-03"] }
+lora-phy = "3.0.1"
+#sx126x = "0.3.0"
