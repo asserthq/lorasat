@@ -1,18 +1,22 @@
-use std::fmt::Write;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::telemetry::Telemetry;
+use sat_core::error::Error;
+use sat_core::protocol::{Beacon, DataFrame, Frame, FrameType};
 use sat_core::radio::HalfDuplexTransceiver;
 
-pub struct ClientDevice<R: HalfDuplexTransceiver + Send + Sync> {
+const CLIENT_ADDR: u32 = 9002;
+
+pub struct ClientDevice<R: HalfDuplexTransceiver> {
     radio: R,
     buf: [u8; 256],
-    pending_telemetry: String,
+    pending_telemetry: Vec<Telemetry>,
     sample_count: u64,
     idle_ticks: u64,
     rng_state: u64,
 }
 
-impl<R: HalfDuplexTransceiver + Send + Sync + 'static> ClientDevice<R> {
+impl<R: HalfDuplexTransceiver> ClientDevice<R> {
     pub fn new(radio: R) -> Self {
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -22,7 +26,7 @@ impl<R: HalfDuplexTransceiver + Send + Sync + 'static> ClientDevice<R> {
         Self {
             radio,
             buf: [0u8; 256],
-            pending_telemetry: String::with_capacity(256),
+            pending_telemetry: Vec::with_capacity(16),
             sample_count: 0,
             idle_ticks: 0,
             rng_state: if seed == 0 { 1 } else { seed },
@@ -40,8 +44,23 @@ impl<R: HalfDuplexTransceiver + Send + Sync + 'static> ClientDevice<R> {
         loop {
             tokio::select! {
                 // Ждём маяк — при получении сбрасываем накопленную телеметрию
-                _ = self.wait_beacon() => {
-                    self.flush_telemetry().await;
+                res = self.wait_beacon() => {
+                    match res {
+                        Ok(beacon) => {
+                            println!("[client] rx beacon: {beacon:?}");
+                            match self.flush_telemetry(beacon.sat_addr).await {
+                                Ok(_) => {
+                                    println!("[client] tx telemetry {} packets", self.pending_telemetry.len());
+                                }
+                                Err(e) => {
+                                    eprintln!("[client] tx telemetry error: {e:?}");
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[client] wait beacon error: {e:?}");
+                        }
+                    }
                 }
 
                 // Случайный сбор телеметрии (interval нагоняет пропущенные тики)
@@ -60,52 +79,58 @@ impl<R: HalfDuplexTransceiver + Send + Sync + 'static> ClientDevice<R> {
     }
 
     /// Блокируется до получения любого пакета (ожидается маяк).
-    async fn wait_beacon(&mut self) {
+    async fn wait_beacon(&mut self) -> Result<Beacon, Error> {
         match self.radio.receive(&mut self.buf).await {
             Ok(n) => {
-                let msg = std::str::from_utf8(&self.buf[..n]).unwrap_or("?");
-                println!("[radio] rx beacon: {msg}");
+                println!("[client radio] rx ok {n} bytes");
+                let frame = Frame::try_decode(&self.buf).unwrap();
+                match frame {
+                    Frame::Beacon(beacon) => Ok(beacon),
+                    _ => Err(Error("not beacon")),
+                }
             }
-            Err(e) => eprintln!("[radio] rx error: {e:?}"),
+            Err(_) => Err(Error("radio rx error")),
         }
     }
 
     /// Отправляет накопленную телеметрию и очищает буфер.
-    async fn flush_telemetry(&mut self) {
-        let tlm = if self.pending_telemetry.is_empty() {
-            format!("TLM:{}:empty", self.sample_count)
-        } else {
-            format!("TLM:{}:{}", self.sample_count, self.pending_telemetry)
-        };
+    async fn flush_telemetry(&mut self, sat_addr: u32) -> Result<(), Error> {
+        let frame = Frame::Data(self.create_tm_data(sat_addr));
+        let payload_vec = frame.encode();
+        let payload = &payload_vec.as_slice();
+        println!("[client] tx data: {frame:?}");
 
-        println!("[radio] tx {tlm}");
-        match self.radio.transmit(tlm.as_bytes()).await {
-            Ok(n) => println!("[radio] tx ok: {n} bytes"),
-            Err(e) => eprintln!("[radio] tx error: {e:?}"),
+        match self.radio.transmit(payload).await {
+            Ok(n) => {
+                println!("[client radio] tx ok {n} bytes");
+                self.pending_telemetry.clear();
+                Ok(())
+            }
+            Err(_) => Err(Error("radio tx error")),
         }
-
-        self.pending_telemetry.clear();
     }
 
-    /// Генерирует случайную телеметрию и добавляет в буфер.
-    fn collect_telemetry(&mut self) {
-        let temp = 20.0 + self.rand_float() * 15.0; // 20.0 .. 35.0 °C
-        let bat = 3.3 + self.rand_float() * 0.7; // 3.3 .. 4.0 V
-        let rssi = -((40 + self.rand_u64() % 51) as i32); // -90 .. -40 dBm
-
-        if !self.pending_telemetry.is_empty() {
-            self.pending_telemetry.push_str(" ; ");
+    fn create_tm_data(&self, sat_addr: u32) -> DataFrame {
+        DataFrame {
+            frame_type: FrameType::DataAsp,
+            src_addr: CLIENT_ADDR,
+            dest_addr: sat_addr,
+            flags: Default::default(),
+            data: Telemetry::serialize_batch(&self.pending_telemetry),
         }
-        let _ = write!(
-            self.pending_telemetry,
-            "[ t={temp:.1},b={bat:.2},r={rssi} ]"
-        );
+    }
+
+    fn collect_telemetry(&mut self) {
+        let tm = Telemetry {
+            temp: 20.0 + self.rand_float() * 15.0,       // 20.0 .. 35.0 °C
+            bat_voltage: 3.3 + self.rand_float() * 0.7,  // 3.3 .. 4.0 V
+            rssi: -((40 + self.rand_u64() % 51) as i32), // -90 .. -40 dBm
+        };
+
+        self.pending_telemetry.push(tm.clone());
 
         self.sample_count += 1;
-        println!(
-            "[client] collect #{:<3} temp={temp:.1} bat={bat:.2} rssi={rssi}",
-            self.sample_count
-        );
+        println!("[client] collect tm #{}: {tm:?}", self.sample_count);
     }
 
     // --- Minimal LCG RNG ---

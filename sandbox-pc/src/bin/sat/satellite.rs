@@ -1,21 +1,25 @@
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use sat_core::error::Error;
+use sat_core::protocol::{Beacon, DataFrame, Frame};
 use sat_core::radio::HalfDuplexTransceiver;
 
-pub struct Satellite<R: HalfDuplexTransceiver + Send + Sync> {
+const SAT_ADDR: u32 = 9001;
+
+pub struct Satellite<R: HalfDuplexTransceiver> {
     radio: R,
-    beacon_count: u64,
     buf: [u8; 256],
     idle_ticks: u64,
+    beacon_interval_sec: u16,
 }
 
-impl<R: HalfDuplexTransceiver + Send + Sync + 'static> Satellite<R> {
+impl<R: HalfDuplexTransceiver> Satellite<R> {
     pub fn new(radio: R) -> Self {
         Self {
             radio,
-            beacon_count: 0,
             buf: [0u8; 256],
             idle_ticks: 0,
+            beacon_interval_sec: 10,
         }
     }
 
@@ -28,7 +32,16 @@ impl<R: HalfDuplexTransceiver + Send + Sync + 'static> Satellite<R> {
 
         loop {
             tokio::select! {
-                _ = self.receive_tm() => {}
+                res = self.receive_tm() => {
+                    match res {
+                        Ok(data_frame) => {
+                            println!("[sat] rx data: {data_frame:?}");
+                        }
+                        Err(e) => {
+                            eprintln!("[sat] rx error: {e:?}");
+                        }
+                    }
+                }
 
                 _ = beacon.tick() => {
                     self.send_beacon().await;
@@ -42,26 +55,43 @@ impl<R: HalfDuplexTransceiver + Send + Sync + 'static> Satellite<R> {
     }
 
     async fn send_beacon(&mut self) {
-        let msg = format!("BEACON:{}", self.beacon_count);
-        match self.radio.transmit(msg.as_bytes()).await {
+        let beacon = self.create_beacon();
+        println!("[sat] tx beacon: {beacon:?}");
+        let frame = Frame::Beacon(beacon);
+        let payload_vec = frame.encode();
+        let payload = &payload_vec.as_slice();
+        match self.radio.transmit(payload).await {
             Err(e) => {
-                eprintln!("[radio] tx error: {e:?}");
+                eprintln!("[sat radio] tx error: {e:?}");
             }
             Ok(n) => {
-                println!("[radio] tx ok: {n} bytes");
+                println!("[sat radio] tx ok: {n} bytes");
             }
         }
-        self.beacon_count += 1;
     }
 
-    /// Блокирующий приём — ждёт пакет от клиента.
-    async fn receive_tm(&mut self) {
+    async fn receive_tm(&mut self) -> Result<DataFrame, Error> {
         match self.radio.receive(&mut self.buf).await {
-            Ok(n) => {
-                let msg = std::str::from_utf8(&self.buf[..n]).unwrap_or("?");
-                println!("[radio] rx ok: {} bytes: {msg}", n);
+            Ok(_) => {
+                let frame = Frame::try_decode(&self.buf).unwrap();
+                match frame {
+                    Frame::Data(data_frame) => Ok(data_frame),
+                    _ => Err(Error("rx not data")),
+                }
             }
-            Err(e) => eprintln!("[radio] rx error: {e:?}"),
-        };
+            Err(_) => Err(Error("radio rx error")),
+        }
+    }
+
+    fn create_beacon(&self) -> Beacon {
+        let unix_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as u32;
+        Beacon {
+            sat_addr: SAT_ADDR,
+            interval_sec: self.beacon_interval_sec,
+            timestamp: unix_secs,
+        }
     }
 }

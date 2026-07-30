@@ -1,4 +1,5 @@
 mod client_device;
+mod telemetry;
 
 use std::io;
 
