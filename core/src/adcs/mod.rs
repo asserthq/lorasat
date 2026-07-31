@@ -1,8 +1,7 @@
 mod bdot;
-mod coils;
-mod mag;
-
+pub mod coils;
 pub mod command;
+pub mod mag;
 
 use core::time::Duration;
 
@@ -29,7 +28,7 @@ pub struct AdcsState {
     coil_levels: CoilLevelsVec,
 }
 
-pub struct ADCS<M: Mag, A: Coils, D: Delay> {
+pub struct Adcs<M: Mag, A: Coils, D: Delay> {
     mag: M,
     coils: A,
     delay: D,
@@ -38,7 +37,7 @@ pub struct ADCS<M: Mag, A: Coils, D: Delay> {
     pending_cmd: Option<AdcsCommand>,
 }
 
-impl<M: Mag, A: Coils, D: Delay> ADCS<M, A, D> {
+impl<M: Mag, A: Coils, D: Delay> Adcs<M, A, D> {
     pub fn new(mag: M, coils: A, delay: D) -> Self {
         Self {
             mag,

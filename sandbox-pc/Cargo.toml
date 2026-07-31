@@ -10,9 +10,6 @@ name = "sat"
 [[bin]]
 name = "client"
 
-[[bin]]
-name = "gs"
-
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 embassy-futures = "0.1.2"
