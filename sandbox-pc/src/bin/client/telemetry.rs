@@ -1,4 +1,4 @@
-use sat_core::error::Error;
+//use sat_core::error::Error;
 
 #[derive(Debug, Clone)]
 pub struct Telemetry {
@@ -18,16 +18,16 @@ impl Telemetry {
         buf
     }
 
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, Error> {
-        if data.len() < Self::ENCODED_SIZE {
-            return Err(Error("telemetry too short"));
-        }
-        Ok(Self {
-            temp: f32::from_le_bytes(data[0..4].try_into().unwrap()),
-            bat_voltage: f32::from_le_bytes(data[4..8].try_into().unwrap()),
-            rssi: i32::from_le_bytes(data[8..12].try_into().unwrap()),
-        })
-    }
+    // pub fn try_from_bytes(data: &[u8]) -> Result<Self, Error> {
+    //     if data.len() < Self::ENCODED_SIZE {
+    //         return Err(Error("telemetry too short"));
+    //     }
+    //     Ok(Self {
+    //         temp: f32::from_le_bytes(data[0..4].try_into().unwrap()),
+    //         bat_voltage: f32::from_le_bytes(data[4..8].try_into().unwrap()),
+    //         rssi: i32::from_le_bytes(data[8..12].try_into().unwrap()),
+    //     })
+    // }
 
     pub fn serialize_batch(tms: &[Self]) -> Vec<u8> {
         let mut buf = Vec::with_capacity(tms.len() * Self::ENCODED_SIZE);
@@ -37,16 +37,16 @@ impl Telemetry {
         buf
     }
 
-    pub fn deserialize_batch(data: &[u8]) -> Result<Vec<Self>, Error> {
-        if data.len() % Self::ENCODED_SIZE != 0 {
-            return Err(Error("invalid batch length"));
-        }
-        let count = data.len() / Self::ENCODED_SIZE;
-        let mut tms = Vec::with_capacity(count);
-        for i in 0..count {
-            let off = i * Self::ENCODED_SIZE;
-            tms.push(Self::try_from_bytes(&data[off..off + Self::ENCODED_SIZE])?);
-        }
-        Ok(tms)
-    }
+    // pub fn deserialize_batch(data: &[u8]) -> Result<Vec<Self>, Error> {
+    //     if data.len() % Self::ENCODED_SIZE != 0 {
+    //         return Err(Error("invalid batch length"));
+    //     }
+    //     let count = data.len() / Self::ENCODED_SIZE;
+    //     let mut tms = Vec::with_capacity(count);
+    //     for i in 0..count {
+    //         let off = i * Self::ENCODED_SIZE;
+    //         tms.push(Self::try_from_bytes(&data[off..off + Self::ENCODED_SIZE])?);
+    //     }
+    //     Ok(tms)
+    // }
 }

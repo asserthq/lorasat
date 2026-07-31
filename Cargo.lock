@@ -109,16 +109,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "cobs"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd93fd2c1b27acd030440c9dbd9d14c1122aad622374fe05a670b67a4bc034be"
-dependencies = [
- "heapless",
- "thiserror",
-]
-
-[[package]]
 name = "cordyceps"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -974,22 +964,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
-name = "sandbox-mcu"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.1.1",
- "defmt-rtt",
- "embassy-executor",
- "embassy-stm32",
- "embassy-time",
- "panic-probe",
- "sat-core",
- "semihosting",
-]
-
-[[package]]
 name = "sandbox-pc"
 version = "0.1.0"
 dependencies = [
@@ -1083,13 +1057,6 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
-
-[[package]]
-name = "sim"
-version = "0.1.0"
-dependencies = [
- "cobs",
-]
 
 [[package]]
 name = "simba"
