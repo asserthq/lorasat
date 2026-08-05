@@ -1,2 +1,3 @@
 pub mod command;
-pub use command::Command;
+pub mod error;
+pub mod status;

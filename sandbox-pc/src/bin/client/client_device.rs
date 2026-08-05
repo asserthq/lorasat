@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::telemetry::Telemetry;
 use sat_core::error::Error;
-use sat_core::protocol::{Beacon, DataFrame, Frame, FrameType};
+use sat_core::protocol::data_link::{Beacon, DataFrame, Frame, FrameType};
 use sat_core::radio::HalfDuplexTransceiver;
 
 const CLIENT_ADDR: u32 = 9002;
@@ -86,10 +86,10 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
                 let frame = Frame::try_decode(&self.buf).unwrap();
                 match frame {
                     Frame::Beacon(beacon) => Ok(beacon),
-                    _ => Err(Error("not beacon")),
+                    _ => Err(Error::Internal("not beacon")),
                 }
             }
-            Err(_) => Err(Error("radio rx error")),
+            Err(_) => Err(Error::Internal("radio rx error")),
         }
     }
 
@@ -106,7 +106,7 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
                 self.pending_telemetry.clear();
                 Ok(())
             }
-            Err(_) => Err(Error("radio tx error")),
+            Err(_) => Err(Error::Internal("radio tx error")),
         }
     }
 
