@@ -1,7 +1,7 @@
 use super::beacon::Beacon;
 use super::data_frame::DataFrame;
-use super::error::ProtocolError;
 use super::frame_type::FrameType;
+use crate::protocol::data_link::error::ProtocolError;
 
 use std::vec::Vec;
 

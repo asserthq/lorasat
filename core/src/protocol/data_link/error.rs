@@ -1,4 +1,4 @@
-use core::fmt;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ProtocolError {
