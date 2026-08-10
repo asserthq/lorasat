@@ -2,23 +2,38 @@ use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, defmt::Format)]
 pub enum Error {
-    ProtocolError,
-    Internal(&'static str),
+    EncodeError,
+    DecodeError,
+    TxError,
+    RxError,
+    LogicError,
+    NotSupported,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ProtocolError => f.write_str("protocol operation error"),
-            Error::Internal(msg) => f.write_str(msg),
+            Error::EncodeError => f.write_str("encode error"),
+            Error::DecodeError => f.write_str("decode error"),
+            Error::NotSupported => f.write_str("feature not supported"),
+            Error::TxError => f.write_str("tx error"),
+            Error::RxError => f.write_str("rx error"),
+            Error::LogicError => f.write_str("logic error"),
         }
     }
 }
 
-// ── From impls for foreign error types ──
-
 impl From<postcard::Error> for Error {
-    fn from(_: postcard::Error) -> Self {
-        Error::ProtocolError
+    fn from(e: postcard::Error) -> Self {
+        match e {
+            postcard::Error::SerializeBufferFull => Error::EncodeError,
+            postcard::Error::SerdeSerCustom => Error::EncodeError,
+            postcard::Error::CollectStrError => Error::EncodeError,
+
+            postcard::Error::WontImplement => Error::EncodeError,
+            postcard::Error::NotYetImplemented => Error::EncodeError,
+
+            _ => Error::DecodeError,
+        }
     }
 }

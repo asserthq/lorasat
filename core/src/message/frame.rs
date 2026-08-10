@@ -1,14 +1,15 @@
+use super::beacon::Beacon;
+use super::data::Data;
 use crate::error::Error;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Command {
-    RequestTelemetry,
-    ChangeBeaconInterval(u32),
-    SetTime(u64),
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Frame {
+    BeaconFrame(Beacon),
+    DataFrame(Data),
 }
 
-impl Command {
+impl Frame {
     pub fn try_encode<'a>(&self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Error> {
         postcard::to_slice(&self, buf).map_err(Error::from)
     }

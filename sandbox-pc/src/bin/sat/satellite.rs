@@ -1,7 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use sat_core::message::command::Command;
-use sat_core::protocol::data_link::{Beacon, DataFrame, Frame, FrameType};
+use heapless::Vec;
+use sat_core::message::{Beacon, Command, Data, DataKind, Frame};
 use sat_core::radio::HalfDuplexTransceiver;
 
 const SAT_ADDR: u32 = 1001;
@@ -10,8 +10,6 @@ const GS_ADDR: u32 = 1;
 pub struct Satellite<R: HalfDuplexTransceiver> {
     radio435: R,
     radio868: R,
-    buf435: [u8; 256],
-    buf868: [u8; 256],
     idle_ticks: u64,
     beacon_interval_sec: u16,
 }
@@ -21,8 +19,6 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         Self {
             radio435,
             radio868,
-            buf435: [0u8; 256],
-            buf868: [0u8; 256],
             idle_ticks: 0,
             beacon_interval_sec: 10,
         }
@@ -33,11 +29,14 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         let mut beacon = tokio::time::interval(Duration::from_secs(10));
         let mut idle = tokio::time::interval(Duration::from_millis(100));
 
+        let mut buf435 = [0u8; 256];
+        let mut buf868 = [0u8; 256];
+
         println!("[sat] online, listening");
 
         loop {
-            let rx435 = Self::receive_cmd_435(&mut self.radio435, &mut self.buf435);
-            let rx868 = Self::receive_tm_868(&mut self.radio868, &mut self.buf868);
+            let rx435 = Self::receive_cmd_435(&mut self.radio435, &mut buf435);
+            let rx868 = Self::receive_tm_868(&mut self.radio868, &mut buf868);
 
             tokio::select! {
                 data_frame = rx868 => {
@@ -70,9 +69,11 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
     async fn send_beacon(&mut self) {
         let beacon = self.create_beacon();
         println!("[sat] tx beacon: {beacon:?}");
-        let frame = Frame::Beacon(beacon);
-        let payload_vec = frame.encode();
-        let payload = &payload_vec.as_slice();
+        let frame = Frame::BeaconFrame(beacon);
+        let mut buf = [0u8; 256];
+        let payload = frame
+            .try_encode(&mut buf)
+            .expect("beacon frame encode error");
         match self.radio868.transmit(payload).await {
             Err(e) => {
                 eprintln!("[sat radio 868] tx error: {e:?}");
@@ -91,12 +92,12 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         }
     }
 
-    async fn receive_tm_868(radio868: &mut R, buf: &mut [u8]) -> Option<DataFrame> {
+    async fn receive_tm_868(radio868: &mut R, buf: &mut [u8]) -> Option<Data> {
         let n = radio868.receive(buf).await.expect("radio 868 rx error");
         println!("[sat radio 868] rx ok {n} bytes");
         let frame = Frame::try_decode(&buf).expect("frame decode error");
         match frame {
-            Frame::Data(data_frame) => Some(data_frame),
+            Frame::DataFrame(data) => Some(data),
             _ => None,
         }
     }
@@ -110,9 +111,9 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         let frame = Frame::try_decode(&buf).expect("frame decode error");
 
         match frame {
-            Frame::Data(data_frame) => {
-                if data_frame.frame_type == FrameType::GroundCommand {
-                    let cmd = Command::try_decode(&data_frame.data).expect("command decode error");
+            Frame::DataFrame(data) => {
+                if data.kind == DataKind::GroundCommand {
+                    let cmd = Command::try_decode(&data.data).expect("command decode error");
                     Some(cmd)
                 } else {
                     None
@@ -132,15 +133,15 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
     }
 
     async fn send_telemetry(&mut self) {
-        let frame = Frame::Data(DataFrame {
-            frame_type: FrameType::SatelliteData,
+        let frame = Frame::DataFrame(Data {
+            kind: DataKind::SatelliteData,
             src_addr: SAT_ADDR,
             dest_addr: GS_ADDR,
             flags: Default::default(),
-            data: vec![0, 1, 2, 3, 4, 5, 6, 7],
+            data: Vec::from_array([0, 1, 2, 3, 4, 5, 6, 7]),
         });
-        let payload_vec = frame.encode();
-        let payload = &payload_vec.as_slice();
+        let mut buf = [0u8; 256];
+        let payload = frame.try_encode(&mut buf).expect("data frame encode error");
         println!("[gs] tx data: {frame:?}");
 
         let n = self

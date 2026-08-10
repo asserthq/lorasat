@@ -1,8 +1,7 @@
 use core::time::Duration;
-use sat_core::message::command::Command;
-use sat_core::protocol::data_link::beacon::Beacon;
-use sat_core::protocol::data_link::{DataFrame, Frame, FrameType};
+use sat_core::message::{Beacon, Command, Data, DataKind, Frame};
 
+use heapless::Vec;
 use sat_core::radio::HalfDuplexTransceiver;
 use tokio::select;
 
@@ -38,19 +37,20 @@ impl<R: HalfDuplexTransceiver> GroundStation<R> {
 
     async fn send_command(&mut self) {
         let cmd = Command::RequestTelemetry;
-        let mut buf = [0u8; 64];
-        let buf = cmd.try_encode(&mut buf).expect("command encode errors");
+        let mut buf = [0u8; 256];
+        let filled = cmd.try_encode(&mut buf).expect("command encode error");
 
-        let frame = Frame::Data(DataFrame {
-            frame_type: FrameType::GroundCommand,
+        let data = Vec::<u8, 256>::from_slice(filled).expect("cmd fits in 256 bytes");
+
+        let frame = Frame::DataFrame(Data {
+            kind: DataKind::GroundCommand,
             src_addr: GS_ADDR,
             dest_addr: SAT_ADDR,
             flags: Default::default(),
-            data: buf.to_vec(),
+            data,
         });
 
-        let payload_vec = frame.encode();
-        let payload = &payload_vec.as_slice();
+        let payload = frame.try_encode(&mut buf).expect("encode command error");
         self.radio435
             .transmit(&payload)
             .await
@@ -67,7 +67,7 @@ impl<R: HalfDuplexTransceiver> GroundStation<R> {
         println!("[client radio] rx ok {n} bytes");
         let frame = Frame::try_decode(&buf).expect("decode frame error");
         match frame {
-            Frame::Beacon(beacon) => Some(beacon),
+            Frame::BeaconFrame(beacon) => Some(beacon),
             _ => None,
         }
     }

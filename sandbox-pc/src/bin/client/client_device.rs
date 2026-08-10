@@ -1,8 +1,11 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::telemetry::Telemetry;
+use crate::telemetry::{self, Telemetry, TelemetryVec};
+use heapless::Vec;
 use sat_core::error::Error;
-use sat_core::protocol::data_link::{Beacon, DataFrame, Frame, FrameType};
+use sat_core::message::beacon::Beacon;
+use sat_core::message::data::{Data, DataKind};
+use sat_core::message::frame::Frame;
 use sat_core::radio::HalfDuplexTransceiver;
 
 const CLIENT_ADDR: u32 = 9002;
@@ -10,7 +13,7 @@ const CLIENT_ADDR: u32 = 9002;
 pub struct ClientDevice<R: HalfDuplexTransceiver> {
     radio: R,
     buf: [u8; 256],
-    pending_telemetry: Vec<Telemetry>,
+    pending_telemetry: TelemetryVec,
     sample_count: u64,
     idle_ticks: u64,
     rng_state: u64,
@@ -26,7 +29,7 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
         Self {
             radio,
             buf: [0u8; 256],
-            pending_telemetry: Vec::with_capacity(16),
+            pending_telemetry: Vec::new(),
             sample_count: 0,
             idle_ticks: 0,
             rng_state: if seed == 0 { 1 } else { seed },
@@ -85,19 +88,18 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
                 println!("[client radio] rx ok {n} bytes");
                 let frame = Frame::try_decode(&self.buf).unwrap();
                 match frame {
-                    Frame::Beacon(beacon) => Ok(beacon),
-                    _ => Err(Error::Internal("not beacon")),
+                    Frame::BeaconFrame(beacon) => Ok(beacon),
+                    _ => Err(Error::LogicError),
                 }
             }
-            Err(_) => Err(Error::Internal("radio rx error")),
+            Err(_) => Err(Error::RxError),
         }
     }
 
     /// Отправляет накопленную телеметрию и очищает буфер.
     async fn flush_telemetry(&mut self, sat_addr: u32) -> Result<(), Error> {
-        let frame = Frame::Data(self.create_tm_data(sat_addr));
-        let payload_vec = frame.encode();
-        let payload = &payload_vec.as_slice();
+        let frame = Frame::DataFrame(self.create_tm_data(sat_addr));
+        let payload = frame.try_encode(&mut self.buf).unwrap();
         println!("[client] tx data: {frame:?}");
 
         match self.radio.transmit(payload).await {
@@ -106,17 +108,22 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
                 self.pending_telemetry.clear();
                 Ok(())
             }
-            Err(_) => Err(Error::Internal("radio tx error")),
+            Err(_) => Err(Error::RxError),
         }
     }
 
-    fn create_tm_data(&self, sat_addr: u32) -> DataFrame {
-        DataFrame {
-            frame_type: FrameType::DataAsp,
+    fn create_tm_data(&self, sat_addr: u32) -> Data {
+        let mut buf = [0u8; 256];
+        let encoded_tm_slice =
+            telemetry::try_encode_vec(&self.pending_telemetry, &mut buf).expect("tm encode error");
+        let payload =
+            Vec::<u8, 256>::from_slice(encoded_tm_slice).expect("payload fits in 256 bytes");
+        Data {
+            kind: DataKind::DataAsp,
             src_addr: CLIENT_ADDR,
             dest_addr: sat_addr,
             flags: Default::default(),
-            data: Telemetry::serialize_batch(&self.pending_telemetry),
+            data: payload,
         }
     }
 
@@ -127,7 +134,9 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
             rssi: -((40 + self.rand_u64() % 51) as i32), // -90 .. -40 dBm
         };
 
-        self.pending_telemetry.push(tm.clone());
+        self.pending_telemetry
+            .push(tm.clone())
+            .expect("tm push error");
 
         self.sample_count += 1;
         println!("[client] collect tm #{}: {tm:?}", self.sample_count);
