@@ -10,7 +10,8 @@ const GS_ADDR: u32 = 1;
 pub struct Satellite<R: HalfDuplexTransceiver> {
     radio435: R,
     radio868: R,
-    buf: [u8; 256],
+    buf435: [u8; 256],
+    buf868: [u8; 256],
     idle_ticks: u64,
     beacon_interval_sec: u16,
 }
@@ -20,7 +21,8 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         Self {
             radio435,
             radio868,
-            buf: [0u8; 256],
+            buf435: [0u8; 256],
+            buf868: [0u8; 256],
             idle_ticks: 0,
             beacon_interval_sec: 10,
         }
@@ -34,15 +36,19 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         println!("[sat] online, listening");
 
         loop {
+            let rx435 = Self::receive_cmd_435(&mut self.radio435, &mut self.buf435);
+            let rx868 = Self::receive_tm_868(&mut self.radio868, &mut self.buf868);
+
             tokio::select! {
-                data_frame = self.receive_tm_868() => {
+                data_frame = rx868 => {
                     println!("[sat] rx [868] data: {data_frame:?}");
                 }
 
-                cmd = self.receive_cmd_435() => {
+                cmd = rx435 => {
                     match cmd {
                         Some(cmd) => {
                             println!("[sat] rx [435] cmd: {cmd:?}");
+                            self.handle_command(cmd).await;
                         }
                         None => {
                             eprintln!("[sat] rx [435] no cmd");
@@ -85,28 +91,23 @@ impl<R: HalfDuplexTransceiver> Satellite<R> {
         }
     }
 
-    async fn receive_tm_868(&mut self) -> Option<DataFrame> {
-        let n = self
-            .radio868
-            .receive(&mut self.buf)
-            .await
-            .expect("radio 868 rx error");
+    async fn receive_tm_868(radio868: &mut R, buf: &mut [u8]) -> Option<DataFrame> {
+        let n = radio868.receive(buf).await.expect("radio 868 rx error");
         println!("[sat radio 868] rx ok {n} bytes");
-        let frame = Frame::try_decode(&self.buf).expect("frame decode error");
+        let frame = Frame::try_decode(&buf).expect("frame decode error");
         match frame {
             Frame::Data(data_frame) => Some(data_frame),
             _ => None,
         }
     }
 
-    async fn receive_cmd_435(&mut self) -> Option<Command> {
-        let n = self
-            .radio435
-            .receive(&mut self.buf)
+    async fn receive_cmd_435(radio435: &mut R, buf: &mut [u8]) -> Option<Command> {
+        let n = radio435
+            .receive(buf)
             .await
             .expect("radio [435] receive error");
         println!("[sat radio 435] rx ok {n} bytes");
-        let frame = Frame::try_decode(&self.buf).expect("frame decode error");
+        let frame = Frame::try_decode(&buf).expect("frame decode error");
 
         match frame {
             Frame::Data(data_frame) => {
