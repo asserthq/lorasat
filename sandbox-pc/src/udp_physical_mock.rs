@@ -3,18 +3,18 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use tokio::net::UdpSocket;
 
-use sat_core::radio::HalfDuplexTransceiver;
+use sat_core::physical::PhysicalLayer;
 
 /// UDP-backed async transceiver for sandbox testing.
 ///
 /// Binds a local port. `transmit()` sends to fixed remote.
 /// `receive()` awaits next datagram.
-pub struct UdpTransciever {
+pub struct UdpPhysicalMock {
     socket: UdpSocket,
     remote: SocketAddr,
 }
 
-impl UdpTransciever {
+impl UdpPhysicalMock {
     pub async fn new(local: SocketAddr, remote: SocketAddr) -> io::Result<Self> {
         let socket = UdpSocket::bind(local).await?;
         Ok(Self { socket, remote })
@@ -27,15 +27,16 @@ impl UdpTransciever {
     }
 }
 
-impl HalfDuplexTransceiver for UdpTransciever {
+impl PhysicalLayer for UdpPhysicalMock {
     type Error = io::Error;
 
-    async fn transmit(&mut self, payload: &[u8]) -> Result<usize, Self::Error> {
-        self.socket.send_to(payload, self.remote).await
+    async fn try_send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
+        self.socket.send_to(payload, self.remote).await?;
+        Ok(())
     }
 
-    async fn receive(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        let (len, _src) = self.socket.recv_from(buf).await?;
-        Ok(len)
+    async fn try_recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+        let (len, _) = self.socket.recv_from(buf).await?;
+        Ok(&mut buf[..len])
     }
 }

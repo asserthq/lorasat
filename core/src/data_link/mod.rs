@@ -1,8 +1,9 @@
-pub mod codec;
 pub mod data;
 pub mod frame;
 
-use self::frame::Frame;
+pub use data::{Data, DataKind};
+pub use frame::Frame;
+
 use core::fmt::Debug;
 
 #[allow(async_fn_in_trait)]

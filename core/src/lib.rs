@@ -5,6 +5,6 @@ pub mod data_link;
 pub mod error;
 pub mod message;
 pub mod physical;
-pub mod radio;
+pub mod proto;
 pub mod time;
 pub mod transport;

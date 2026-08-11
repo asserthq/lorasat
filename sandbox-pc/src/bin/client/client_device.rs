@@ -2,16 +2,16 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::telemetry::{self, Telemetry, TelemetryVec};
 use heapless::Vec;
+use sat_core::data_link::DataLinkLayer;
 use sat_core::error::Error;
 use sat_core::message::beacon::Beacon;
 use sat_core::message::data::{Data, DataKind};
 use sat_core::message::frame::Frame;
-use sat_core::radio::HalfDuplexTransceiver;
 
 const CLIENT_ADDR: u32 = 9002;
 
-pub struct ClientDevice<R: HalfDuplexTransceiver> {
-    radio: R,
+pub struct ClientDevice<L: DataLinkLayer> {
+    link: L,
     buf: [u8; 256],
     pending_telemetry: TelemetryVec,
     sample_count: u64,
@@ -19,15 +19,15 @@ pub struct ClientDevice<R: HalfDuplexTransceiver> {
     rng_state: u64,
 }
 
-impl<R: HalfDuplexTransceiver> ClientDevice<R> {
-    pub fn new(radio: R) -> Self {
+impl<L: DataLinkLayer> ClientDevice<L> {
+    pub fn new(link: L) -> Self {
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos() as u64;
 
         Self {
-            radio,
+            link,
             buf: [0u8; 256],
             pending_telemetry: Vec::new(),
             sample_count: 0,
@@ -48,22 +48,8 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
             tokio::select! {
                 // Ждём маяк — при получении сбрасываем накопленную телеметрию
                 res = self.wait_beacon() => {
-                    match res {
-                        Ok(beacon) => {
-                            println!("[client] rx beacon: {beacon:?}");
-                            match self.flush_telemetry(beacon.sat_addr).await {
-                                Ok(_) => {
-                                    println!("[client] tx telemetry {} packets", self.pending_telemetry.len());
-                                }
-                                Err(e) => {
-                                    eprintln!("[client] tx telemetry error: {e:?}");
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("[client] wait beacon error: {e:?}");
-                        }
-                    }
+                    println!("[client] rx beacon: {beacon:?}");
+                    self.flush_telemetry(beacon.sat_addr).await
                 }
 
                 // Случайный сбор телеметрии (interval нагоняет пропущенные тики)
@@ -81,35 +67,23 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
         }
     }
 
-    /// Блокируется до получения любого пакета (ожидается маяк).
-    async fn wait_beacon(&mut self) -> Result<Beacon, Error> {
-        match self.radio.receive(&mut self.buf).await {
-            Ok(n) => {
-                println!("[client radio] rx ok {n} bytes");
-                let frame = Frame::try_decode(&self.buf).unwrap();
-                match frame {
-                    Frame::BeaconFrame(beacon) => Ok(beacon),
-                    _ => Err(Error::LogicError),
-                }
+    async fn wait_beacon(&mut self) -> Beacon {
+        let mut buf = [0u8; 256];
+        let mut b: Option<Beacon> = None;
+        while b.is_none() {
+            let frame = self.link.try_recv_frame(&mut buf).await.unwrap();
+            if let Frame::BeaconFrame(beacon) = frame {
+                b = Some(beacon)
             }
-            Err(_) => Err(Error::RxError),
         }
+        b.unwrap()
     }
 
     /// Отправляет накопленную телеметрию и очищает буфер.
-    async fn flush_telemetry(&mut self, sat_addr: u32) -> Result<(), Error> {
+    async fn flush_telemetry(&mut self, sat_addr: u32) {
         let frame = Frame::DataFrame(self.create_tm_data(sat_addr));
-        let payload = frame.try_encode(&mut self.buf).unwrap();
         println!("[client] tx data: {frame:?}");
-
-        match self.radio.transmit(payload).await {
-            Ok(n) => {
-                println!("[client radio] tx ok {n} bytes");
-                self.pending_telemetry.clear();
-                Ok(())
-            }
-            Err(_) => Err(Error::RxError),
-        }
+        self.link.try_send_frame(frame).await.unwrap();
     }
 
     fn create_tm_data(&self, sat_addr: u32) -> Data {
