@@ -2,23 +2,30 @@ use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, defmt::Format)]
 pub enum Error {
-    EncodeError,
-    DecodeError,
-    TxError,
-    RxError,
-    LogicError,
+    TransportSend,
+    TransportRecv,
+
+    DataLinkEncode,
+    DataLinkDecode,
+
+    PhysicalTx,
+    PhysicalRx,
+
+    Logic,
     NotSupported,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::EncodeError => f.write_str("encode error"),
-            Error::DecodeError => f.write_str("decode error"),
+            Error::TransportSend => f.write_str("transport send error"),
+            Error::TransportRecv => f.write_str("transport receive error"),
+            Error::DataLinkEncode => f.write_str("data link encode error"),
+            Error::DataLinkDecode => f.write_str("data link decode error"),
+            Error::PhysicalTx => f.write_str("physical tx error"),
+            Error::PhysicalRx => f.write_str("physical rx error"),
+            Error::Logic => f.write_str("logic error"),
             Error::NotSupported => f.write_str("feature not supported"),
-            Error::TxError => f.write_str("tx error"),
-            Error::RxError => f.write_str("rx error"),
-            Error::LogicError => f.write_str("logic error"),
         }
     }
 }
@@ -26,14 +33,14 @@ impl fmt::Display for Error {
 impl From<postcard::Error> for Error {
     fn from(e: postcard::Error) -> Self {
         match e {
-            postcard::Error::SerializeBufferFull => Error::EncodeError,
-            postcard::Error::SerdeSerCustom => Error::EncodeError,
-            postcard::Error::CollectStrError => Error::EncodeError,
+            postcard::Error::SerializeBufferFull => Error::DataLinkEncode,
+            postcard::Error::SerdeSerCustom => Error::DataLinkEncode,
+            postcard::Error::CollectStrError => Error::DataLinkEncode,
 
-            postcard::Error::WontImplement => Error::EncodeError,
-            postcard::Error::NotYetImplemented => Error::EncodeError,
+            postcard::Error::WontImplement => Error::DataLinkEncode,
+            postcard::Error::NotYetImplemented => Error::DataLinkEncode,
 
-            _ => Error::DecodeError,
+            _ => Error::DataLinkDecode,
         }
     }
 }

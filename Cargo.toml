@@ -3,6 +3,7 @@ members = [
     "core",
     "drivers",
     "firmware",
+    "satellite_frp",
 
     #"sandbox-mcu",
     "sandbox-pc",

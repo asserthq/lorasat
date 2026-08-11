@@ -1,6 +1,6 @@
-use super::beacon::Beacon;
 use super::data::Data;
 use crate::error::Error;
+use crate::message::Beacon;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
