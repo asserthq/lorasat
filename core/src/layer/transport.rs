@@ -2,7 +2,11 @@ use core::fmt::Debug;
 use heapless::Vec;
 use serde::{Deserialize, Serialize};
 
-pub const MAX_TRANSPORT_MESSAGE: usize = 4096;
+use crate::layer::data_link::MAX_DATALINK_PAYLOAD;
+use core::mem::size_of;
+
+pub const MAX_TRANSPORT_CHUNK_PAYLOAD: usize = MAX_DATALINK_PAYLOAD - size_of::<TransportHeader>();
+pub const MAX_TRANSPORT_MESSAGE_PAYLOAD: usize = MAX_TRANSPORT_CHUNK_PAYLOAD * 256;
 
 #[allow(async_fn_in_trait)]
 pub trait TransportLayer {
@@ -17,9 +21,14 @@ pub trait TransportLayer {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TransportMessage {
+    pub header: TransportHeader,
+    pub payload: Vec<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TransportHeader {
     pub dest_addr: u32,
     //pub kind: MessageKind,
-    pub payload: Vec<u8, MAX_TRANSPORT_MESSAGE>,
 }
 
 // #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

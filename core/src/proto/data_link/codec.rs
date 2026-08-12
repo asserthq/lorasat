@@ -126,7 +126,7 @@ mod tests {
             src_addr: 1,
             dest_addr: 2,
             flags: 0,
-            data: Vec::from_slice(b"hello").unwrap(),
+            payload: Vec::from_slice(b"hello").unwrap(),
         }
     }
 
@@ -179,7 +179,7 @@ mod tests {
             src_addr: 0,
             dest_addr: 0,
             flags: 0,
-            data: Vec::new(),
+            payload: Vec::new(),
         };
         let mut buf = [0u8; 256];
         let encoded = DataLinkCodec::<MockPhy>::encode(&frame, &mut buf).unwrap();

@@ -1,7 +1,10 @@
 use core::time::Duration;
 use sandbox_pc::addr::SAT_ADDR;
 use sat_core::layer::app::AppMessage;
-use sat_core::layer::transport::{TransportLayer, TransportMessage};
+use sat_core::layer::transport::{
+    MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, TransportHeader, TransportLayer,
+    TransportMessage,
+};
 use sat_core::message::{Beacon, GroundCommand};
 
 use heapless::Vec;
@@ -17,42 +20,49 @@ impl<T: TransportLayer> GroundStation<T> {
     }
 
     pub async fn run(&mut self) {
-        let mut tm_request = tokio::time::interval(Duration::from_secs(10));
+        let mut request_interval = tokio::time::interval(Duration::from_secs(10));
 
         loop {
+            let rx_sat = Self::recv_msg(&mut self.transport);
+
             select! {
-                beacon = self.wait_beacon() => {
-                    match beacon {
-                        Some(beacon) => println!("[gs] rx beacon: {:?}", beacon),
-                        None => println!("[gs] rx no beacon"),
+                sat_msg = rx_sat => {
+                    print!("[gs] [rx_sat] ");
+                    match sat_msg {
+                        AppMessage::BeaconMsg(beacon) => println!("{:?}", beacon),
+                        AppMessage::ClientDataMsg(client_data) => println!("{:?}", client_data),
+                        msg => println!("nonsense: {:?}", msg)
                     }
                 }
-                _ = tm_request.tick() => {
-                    self.send_command().await;
+
+                _ = request_interval.tick() => {
+                    self.request_data().await;
                 }
             }
         }
     }
 
-    async fn send_command(&mut self) {
-        let cmd = GroundCommand::RequestTelemetry;
+    async fn request_data(&mut self) {
+        let cmd = GroundCommand::RequestClientData;
         let msg = AppMessage::GndCommandMsg(cmd);
 
-        let mut buf = [0u8; 4096];
-        let ser = postcard::to_slice(&msg, &mut buf).expect("serialize AppMessage");
-        let payload = Vec::<u8, 4096>::from_slice(ser).expect("cmd fits in transport payload");
+        let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
+        let ser = postcard::to_slice(&msg, &mut buf).unwrap();
+        let payload = Vec::<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>::from_slice(ser).unwrap();
 
         // dest_addr flows through the message
         let transport_msg = TransportMessage {
+            header: TransportHeader {
+                dest_addr: SAT_ADDR,
+            },
             payload,
-            dest_addr: SAT_ADDR,
         };
 
         self.transport
             .try_send_message(transport_msg)
             .await
             .unwrap();
-        println!("[gs] tx RequestTelemetry");
+        println!("[gs] [tx_sat] request client data");
     }
 
     async fn wait_beacon(&mut self) -> Option<Beacon> {
@@ -65,5 +75,12 @@ impl<T: TransportLayer> GroundStation<T> {
             AppMessage::BeaconMsg(beacon) => Some(beacon),
             _ => None,
         }
+    }
+
+    async fn recv_msg(transport: &mut T) -> AppMessage {
+        let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
+        let transport_msg = transport.try_recv_message(&mut buf).await.unwrap();
+        let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
+        app_msg
     }
 }

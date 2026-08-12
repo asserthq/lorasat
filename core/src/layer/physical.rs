@@ -1,5 +1,7 @@
 use core::fmt::Debug;
 
+pub const MAX_PHYSICAL_PAYLOAD: usize = 255;
+
 #[allow(async_fn_in_trait)]
 pub trait PhysicalLayer {
     type Error: Debug;
