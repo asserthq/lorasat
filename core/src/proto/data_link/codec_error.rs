@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::error;
-use crate::physical::PhysicalLayer;
+use crate::layer::physical::PhysicalLayer;
 
 #[derive(Debug)]
 pub enum CodecError<P: PhysicalLayer + Debug> {

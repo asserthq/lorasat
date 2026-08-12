@@ -1,20 +1,19 @@
 use core::time::Duration;
-use sat_core::message::{Beacon, Command, Data, DataKind, Frame};
+use sandbox_pc::addr::SAT_ADDR;
+use sat_core::layer::app::AppMessage;
+use sat_core::layer::transport::{TransportLayer, TransportMessage};
+use sat_core::message::{Beacon, GroundCommand};
 
 use heapless::Vec;
-use sat_core::radio::HalfDuplexTransceiver;
 use tokio::select;
 
-const SAT_ADDR: u32 = 1001;
-const GS_ADDR: u32 = 1;
-
-pub struct GroundStation<R: HalfDuplexTransceiver> {
-    radio435: R,
+pub struct GroundStation<T: TransportLayer> {
+    transport: T,
 }
 
-impl<R: HalfDuplexTransceiver> GroundStation<R> {
-    pub fn new(radio435: R) -> Self {
-        Self { radio435 }
+impl<T: TransportLayer> GroundStation<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
     }
 
     pub async fn run(&mut self) {
@@ -24,8 +23,8 @@ impl<R: HalfDuplexTransceiver> GroundStation<R> {
             select! {
                 beacon = self.wait_beacon() => {
                     match beacon {
-                        Some(beacon) => println!("[client] rx beacon: {:?}", beacon),
-                        None => println!("[client] rx no beacon"),
+                        Some(beacon) => println!("[gs] rx beacon: {:?}", beacon),
+                        None => println!("[gs] rx no beacon"),
                     }
                 }
                 _ = tm_request.tick() => {
@@ -36,38 +35,34 @@ impl<R: HalfDuplexTransceiver> GroundStation<R> {
     }
 
     async fn send_command(&mut self) {
-        let cmd = Command::RequestTelemetry;
-        let mut buf = [0u8; 256];
-        let filled = cmd.try_encode(&mut buf).expect("command encode error");
+        let cmd = GroundCommand::RequestTelemetry;
+        let msg = AppMessage::GndCommandMsg(cmd);
 
-        let data = Vec::<u8, 256>::from_slice(filled).expect("cmd fits in 256 bytes");
+        let mut buf = [0u8; 4096];
+        let ser = postcard::to_slice(&msg, &mut buf).expect("serialize AppMessage");
+        let payload = Vec::<u8, 4096>::from_slice(ser).expect("cmd fits in transport payload");
 
-        let frame = Frame::DataFrame(Data {
-            kind: DataKind::GroundCommand,
-            src_addr: GS_ADDR,
+        // dest_addr flows through the message
+        let transport_msg = TransportMessage {
+            payload,
             dest_addr: SAT_ADDR,
-            flags: Default::default(),
-            data,
-        });
+        };
 
-        let payload = frame.try_encode(&mut buf).expect("encode command error");
-        self.radio435
-            .transmit(&payload)
+        self.transport
+            .try_send_message(transport_msg)
             .await
-            .expect("tx command error");
+            .unwrap();
+        println!("[gs] tx RequestTelemetry");
     }
 
     async fn wait_beacon(&mut self) -> Option<Beacon> {
-        let mut buf = [0u8; 256];
-        let n = self
-            .radio435
-            .receive(&mut buf)
-            .await
-            .expect("radio [435] rx error");
-        println!("[client radio] rx ok {n} bytes");
-        let frame = Frame::try_decode(&buf).expect("decode frame error");
-        match frame {
-            Frame::BeaconFrame(beacon) => Some(beacon),
+        let mut buf = [0u8; 4096];
+        let transport_msg = self.transport.try_recv_message(&mut buf).await.unwrap();
+
+        let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
+
+        match app_msg {
+            AppMessage::BeaconMsg(beacon) => Some(beacon),
             _ => None,
         }
     }

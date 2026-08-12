@@ -1,9 +1,7 @@
 use heapless::Vec;
 
-use crate::data_link::DataLinkLayer;
-use crate::data_link::data::{Data, DataKind};
-use crate::data_link::frame::Frame;
-use crate::transport::TransportLayer;
+use crate::layer::data_link::{DataLinkFrame, DataLinkLayer, FrameKind};
+use crate::layer::transport::{TransportLayer, TransportMessage};
 
 use super::frp_error::FrpError;
 use super::frp_message::{
@@ -25,19 +23,19 @@ enum FrpPacket {
 pub struct FrpTransport<L: DataLinkLayer> {
     link: L,
     src_addr: u32,
-    dest_addr: u32,
     chunk_size: u16,
     next_session_id: u16,
+    session_src: u32,
 }
 
 impl<L: DataLinkLayer> FrpTransport<L> {
-    pub fn new(link: L, src_addr: u32, dest_addr: u32, chunk_size: u16) -> Self {
+    pub fn new(link: L, src_addr: u32, chunk_size: u16) -> Self {
         Self {
             link,
             src_addr,
-            dest_addr,
             chunk_size,
             next_session_id: 1,
+            session_src: 0,
         }
     }
 
@@ -62,13 +60,13 @@ impl<L: DataLinkLayer> FrpTransport<L> {
         }
     }
 
-    /// Wrap serialized FRP bytes into a `Data` link-layer frame.
-    fn wrap_frp_bytes(&self, bytes: &[u8]) -> Result<Data, FrpError> {
+    /// Wrap serialized FRP bytes into a `DataLinkFrame`.
+    fn wrap_frp_bytes(&self, bytes: &[u8], dest_addr: u32) -> Result<DataLinkFrame, FrpError> {
         let data_vec = Vec::from_slice(bytes).map_err(|_| FrpError::Encode)?;
-        Ok(Data {
-            kind: DataKind::SatelliteData,
+        Ok(DataLinkFrame {
+            kind: FrameKind::Transport,
             src_addr: self.src_addr,
-            dest_addr: self.dest_addr,
+            dest_addr,
             flags: 0,
             data: data_vec,
         })
@@ -86,8 +84,8 @@ impl<L: DataLinkLayer> FrpTransport<L> {
                 .try_recv_frame(buf)
                 .await
                 .map_err(|_| FrpError::Decode)?;
-            if let Frame::DataFrame(data) = frame {
-                if let Ok(FrpPacket::Check(check)) = Self::classify(&data.data) {
+            if frame.kind == FrameKind::Transport {
+                if let Ok(FrpPacket::Check(check)) = Self::classify(&frame.data) {
                     if check.session_id == expected_session {
                         return Ok(check);
                     }
@@ -104,8 +102,9 @@ impl<L: DataLinkLayer> FrpTransport<L> {
                 .try_recv_frame(buf)
                 .await
                 .map_err(|_| FrpError::Decode)?;
-            if let Frame::DataFrame(data) = frame {
-                if let Ok(FrpPacket::Start(start)) = Self::classify(&data.data) {
+            if frame.kind == FrameKind::Transport {
+                if let Ok(FrpPacket::Start(start)) = Self::classify(&frame.data) {
+                    self.session_src = frame.src_addr;
                     return Ok(start);
                 }
             }
@@ -124,8 +123,8 @@ impl<L: DataLinkLayer> FrpTransport<L> {
                 .try_recv_frame(buf)
                 .await
                 .map_err(|_| FrpError::Decode)?;
-            if let Frame::DataFrame(data) = frame {
-                if let Ok(FrpPacket::Data(frp_data)) = Self::classify(&data.data) {
+            if frame.kind == FrameKind::Transport {
+                if let Ok(FrpPacket::Data(frp_data)) = Self::classify(&frame.data) {
                     if frp_data.session_id == expected_session {
                         return Ok(frp_data);
                     }
@@ -144,12 +143,24 @@ impl<L: DataLinkLayer> FrpTransport<L> {
     }
 }
 
+impl<L: DataLinkLayer> core::fmt::Debug for FrpTransport<L> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FrpTransport")
+            .field("src_addr", &self.src_addr)
+            .field("chunk_size", &self.chunk_size)
+            .field("next_session_id", &self.next_session_id)
+            .finish_non_exhaustive()
+    }
+}
+
 // ── TransportLayer impl ──
 
 impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
     type Error = FrpError;
 
-    async fn try_send_message(&mut self, data: &[u8]) -> Result<(), Self::Error> {
+    async fn try_send_message(&mut self, msg: TransportMessage) -> Result<(), Self::Error> {
+        let dest_addr = msg.addr;
+        let data = &msg.payload;
         let session_id = self.next_id();
         let checksum = Self::compute_checksum(data);
         let mut session = SenderSession::new(data, self.chunk_size, session_id, checksum)?;
@@ -163,10 +174,10 @@ impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
         loop {
             let packet = session.next_packet(&mut encode_buf)?;
             let Some(packet) = packet else { break };
-            let wrapped = self.wrap_frp_bytes(packet)?;
+            let wrapped = self.wrap_frp_bytes(packet, dest_addr)?;
             // packet borrow ends here — encode_buf is free again.
             self.link
-                .try_send_frame(Frame::DataFrame(wrapped))
+                .try_send_frame(wrapped)
                 .await
                 .map_err(|_| FrpError::Encode)?;
         }
@@ -184,9 +195,9 @@ impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
             loop {
                 let packet = session.next_packet(&mut encode_buf)?;
                 let Some(packet) = packet else { break };
-                let wrapped = self.wrap_frp_bytes(packet)?;
+                let wrapped = self.wrap_frp_bytes(packet, dest_addr)?;
                 self.link
-                    .try_send_frame(Frame::DataFrame(wrapped))
+                    .try_send_frame(wrapped)
                     .await
                     .map_err(|_| FrpError::Encode)?;
             }
@@ -197,8 +208,8 @@ impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
 
     async fn try_recv_message<'a>(
         &'a mut self,
-        buf: &'a mut [u8],
-    ) -> Result<&'a mut [u8], Self::Error> {
+        _buf: &'a mut [u8],
+    ) -> Result<TransportMessage, Self::Error> {
         let mut rx_buf = [0u8; 256];
         let mut encode_buf = [0u8; 256];
 
@@ -222,9 +233,9 @@ impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
                 status: 0x00,
             };
             let ack_slice = ack.try_encode(&mut encode_buf)?;
-            let wrapped = self.wrap_frp_bytes(ack_slice)?;
+            let wrapped = self.wrap_frp_bytes(ack_slice, self.session_src)?;
             self.link
-                .try_send_frame(Frame::DataFrame(wrapped))
+                .try_send_frame(wrapped)
                 .await
                 .map_err(|_| FrpError::Encode)?;
         }
@@ -232,22 +243,21 @@ impl<L: DataLinkLayer> TransportLayer for FrpTransport<L> {
         // 4. Send final FrpCheck (all chunks received).
         let check = session.generate_check()?;
         let check_slice = check.try_encode(&mut encode_buf)?;
-        let wrapped = self.wrap_frp_bytes(check_slice)?;
+        let wrapped = self.wrap_frp_bytes(check_slice, self.session_src)?;
         self.link
-            .try_send_frame(Frame::DataFrame(wrapped))
+            .try_send_frame(wrapped)
             .await
             .map_err(|_| FrpError::Encode)?;
 
-        // 5. Copy assembled message into caller buffer.
+        // 5. Assemble into TransportMessage.
         let msg = session
             .assembled_message()
             .ok_or(FrpError::SessionNotInitialized)?;
-        let len = msg.len();
-        if len > buf.len() {
-            return Err(FrpError::BufferTooShort);
-        }
-        buf[..len].copy_from_slice(msg);
-        Ok(&mut buf[..len])
+        let payload = Vec::from_slice(msg).map_err(|_| FrpError::Encode)?;
+        Ok(TransportMessage {
+            addr: self.session_src,
+            payload,
+        })
     }
 }
 

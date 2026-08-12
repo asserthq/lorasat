@@ -3,12 +3,13 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use tokio::net::UdpSocket;
 
-use sat_core::physical::PhysicalLayer;
+use sat_core::layer::physical::PhysicalLayer;
 
 /// UDP-backed async transceiver for sandbox testing.
 ///
 /// Binds a local port. `transmit()` sends to fixed remote.
 /// `receive()` awaits next datagram.
+#[derive(Debug)]
 pub struct UdpPhysicalMock {
     socket: UdpSocket,
     remote: SocketAddr,
