@@ -5,7 +5,7 @@ use defmt::info;
 use embassy_executor::Spawner;
 use embassy_stm32::gpio::{Level, Output, Speed};
 use embassy_time::Timer;
-use firmware_lib as _;
+use sandbox_lib as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {

@@ -1,5 +1,6 @@
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    CreateInterfaceVariant,
     CreateLora,
     InitLora,
     CreateModulationParams,
