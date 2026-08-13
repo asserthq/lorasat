@@ -4,9 +4,9 @@ members = [
     "drivers",
     "firmware",
 
-    #"sandbox-mcu",
-    "sandbox-pc",
-    #"sim"
+    "sandbox-mcu",
+    # "sandbox-pc",
+    # "sim"
 ]
 
 resolver = "3"

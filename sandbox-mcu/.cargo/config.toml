@@ -3,7 +3,7 @@ runner = [
     "probe-rs",
     "run",
     "--chip",
-    "STM32F303VC",
+    "STM32F401RCTx",
     "--log-format=oneline"
 ]
 # If you have an nRF52, you might also want to add "--allow-erase-all" to the list
@@ -21,9 +21,9 @@ rustflags = [
 [build]
 # Select the correct target for your processor:
 # target = "thumbv6m-none-eabi"    # Cortex-M0 and Cortex-M0+
-target = "thumbv7m-none-eabi"    # Cortex-M3
+# target = "thumbv7m-none-eabi"    # Cortex-M3
 # target = "thumbv7em-none-eabi"   # Cortex-M4 and Cortex-M7 (no FPU)
-# target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
+target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
 
 [alias]
 # `cargo rb foo` will expand to `cargo run --bin foo`
