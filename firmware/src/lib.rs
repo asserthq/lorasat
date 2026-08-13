@@ -13,20 +13,19 @@ fn panic() -> ! {
     cortex_m::asm::udf()
 }
 
-/// Terminates the application and makes a semihosting-capable debug tool exit
-/// with status code 0.
+/// Terminates the application.
 pub fn exit() -> ! {
-    semihosting::process::exit(0);
+    loop {
+        cortex_m::asm::bkpt();
+    }
 }
 
 /// Hardfault handler.
-///
-/// Terminates the application and makes a semihosting-capable debug tool exit
-/// with an error. This seems better than the default, which is to spin in a
-/// loop.
 #[cortex_m_rt::exception]
 unsafe fn HardFault(_frame: &cortex_m_rt::ExceptionFrame) -> ! {
-    semihosting::process::exit(1);
+    loop {
+        cortex_m::asm::bkpt();
+    }
 }
 
 // defmt-test 0.3.0 has the limitation that this `#[tests]` attribute can only be used

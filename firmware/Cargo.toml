@@ -12,7 +12,7 @@ harness = false
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 
-embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f303vc", "unstable-pac", "memory-x", "time-driver-any", "exti" ]  }
+embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f401rc", "unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }
 embassy-executor = { version = "0.10.0", features = ["platform-cortex-m", "executor-thread", "defmt"] }
 embassy-time = { version = "0.5.1", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 
@@ -25,4 +25,4 @@ defmt-rtt = "1.0.0"
 
 # DEBUG
 panic-probe = { version = "1.0.0", features = ["print-defmt"] }
-semihosting = "0.1.25"
+defmt-test = "0.5.0"
