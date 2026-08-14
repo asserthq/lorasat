@@ -21,7 +21,7 @@ use lora_phy::sx127x::{Sx127x, Sx1276};
 use lora_phy::{mod_params::*, sx127x};
 use {defmt_rtt as _, panic_probe as _};
 
-const LORA_FREQUENCY_IN_HZ: u32 = 433_000_000; // warning: set this appropriately for the region
+const LORA_FREQUENCY_IN_HZ: u32 = 433_000_000;
 
 bind_interrupts!(struct Irqs {
     // SPI1 => spi::InterruptHandler<peripheral::SPI1>;
