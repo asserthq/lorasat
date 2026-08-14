@@ -4,14 +4,18 @@ members = [
     "drivers",
     "firmware",
 
-    #"sandbox-mcu",
+    "sandbox-mcu",
     "sandbox-pc",
-    #"sim"
+    # "sim"
 ]
 
 resolver = "3"
 
-default-members = ["core", "sandbox-pc"]
+default-members = [
+    "core",
+    "drivers",
+    "firmware",
+]
 
 # cargo build/run
 [profile.dev]

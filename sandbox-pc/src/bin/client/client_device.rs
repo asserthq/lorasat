@@ -1,34 +1,30 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::telemetry::{self, Telemetry, TelemetryVec};
 use heapless::Vec;
-use sat_core::error::Error;
+use sat_core::layer::app::AppMessage;
+use sat_core::layer::transport::{TransportLayer, TransportMessage};
 use sat_core::message::beacon::Beacon;
-use sat_core::message::data::{Data, DataKind};
-use sat_core::message::frame::Frame;
-use sat_core::radio::HalfDuplexTransceiver;
+use sat_core::message::client_data::ClientData;
 
-const CLIENT_ADDR: u32 = 9002;
+use crate::telemetry::{self, Telemetry, TelemetryVec};
 
-pub struct ClientDevice<R: HalfDuplexTransceiver> {
-    radio: R,
-    buf: [u8; 256],
+pub struct ClientDevice<T: TransportLayer> {
+    transport: T,
     pending_telemetry: TelemetryVec,
     sample_count: u64,
     idle_ticks: u64,
     rng_state: u64,
 }
 
-impl<R: HalfDuplexTransceiver> ClientDevice<R> {
-    pub fn new(radio: R) -> Self {
+impl<T: TransportLayer> ClientDevice<T> {
+    pub fn new(transport: T) -> Self {
         let seed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos() as u64;
 
         Self {
-            radio,
-            buf: [0u8; 256],
+            transport,
             pending_telemetry: Vec::new(),
             sample_count: 0,
             idle_ticks: 0,
@@ -36,7 +32,6 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
         }
     }
 
-    /// Главный цикл: слушаем маяки, копим телеметрию с random интервалом, idle 100 мс.
     pub async fn run(mut self) {
         let first_tlm = Duration::from_secs(self.rand_range(3, 8));
         let mut tlm_timer = tokio::time::interval(first_tlm);
@@ -46,34 +41,17 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
 
         loop {
             tokio::select! {
-                // Ждём маяк — при получении сбрасываем накопленную телеметрию
-                res = self.wait_beacon() => {
-                    match res {
-                        Ok(beacon) => {
-                            println!("[client] rx beacon: {beacon:?}");
-                            match self.flush_telemetry(beacon.sat_addr).await {
-                                Ok(_) => {
-                                    println!("[client] tx telemetry {} packets", self.pending_telemetry.len());
-                                }
-                                Err(e) => {
-                                    eprintln!("[client] tx telemetry error: {e:?}");
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("[client] wait beacon error: {e:?}");
-                        }
-                    }
+                beacon = self.wait_beacon() => {
+                    println!("[client] rx beacon: {beacon:?}");
+                    self.flush_telemetry(beacon.sat_addr).await
                 }
 
-                // Случайный сбор телеметрии (interval нагоняет пропущенные тики)
                 _ = tlm_timer.tick() => {
                     self.collect_telemetry();
                     let next = Duration::from_secs(self.rand_range(3, 8));
                     tlm_timer.reset_after(next);
                 }
 
-                // Счётчик простоя — плейсхолдер для будущих служебных задач
                 _ = idle.tick() => {
                     self.idle_ticks += 1;
                 }
@@ -81,57 +59,56 @@ impl<R: HalfDuplexTransceiver> ClientDevice<R> {
         }
     }
 
-    /// Блокируется до получения любого пакета (ожидается маяк).
-    async fn wait_beacon(&mut self) -> Result<Beacon, Error> {
-        match self.radio.receive(&mut self.buf).await {
-            Ok(n) => {
-                println!("[client radio] rx ok {n} bytes");
-                let frame = Frame::try_decode(&self.buf).unwrap();
-                match frame {
-                    Frame::BeaconFrame(beacon) => Ok(beacon),
-                    _ => Err(Error::LogicError),
-                }
+    async fn wait_beacon(&mut self) -> Beacon {
+        loop {
+            let mut buf = [0u8; 4096];
+            let msg = self.transport.try_recv_message(&mut buf).await.unwrap();
+            if let Ok(AppMessage::BeaconMsg(beacon)) = postcard::from_bytes(&msg.payload) {
+                return beacon;
             }
-            Err(_) => Err(Error::RxError),
         }
     }
 
-    /// Отправляет накопленную телеметрию и очищает буфер.
-    async fn flush_telemetry(&mut self, sat_addr: u32) -> Result<(), Error> {
-        let frame = Frame::DataFrame(self.create_tm_data(sat_addr));
-        let payload = frame.try_encode(&mut self.buf).unwrap();
-        println!("[client] tx data: {frame:?}");
-
-        match self.radio.transmit(payload).await {
-            Ok(n) => {
-                println!("[client radio] tx ok {n} bytes");
-                self.pending_telemetry.clear();
-                Ok(())
-            }
-            Err(_) => Err(Error::RxError),
+    /// Sends accumulated telemetry to the satellite.
+    async fn flush_telemetry(&mut self, sat_addr: u32) {
+        if self.pending_telemetry.is_empty() {
+            return;
         }
-    }
 
-    fn create_tm_data(&self, sat_addr: u32) -> Data {
-        let mut buf = [0u8; 256];
-        let encoded_tm_slice =
-            telemetry::try_encode_vec(&self.pending_telemetry, &mut buf).expect("tm encode error");
-        let payload =
-            Vec::<u8, 256>::from_slice(encoded_tm_slice).expect("payload fits in 256 bytes");
-        Data {
-            kind: DataKind::DataAsp,
-            src_addr: CLIENT_ADDR,
+        // Serialize telemetry vec into bytes, then wrap in ClientData.
+        let mut tm_buf = [0u8; 256];
+        let tm_slice = telemetry::try_encode_vec(&self.pending_telemetry, &mut tm_buf)
+            .expect("tm encode error");
+        let data = Vec::<u8, 256>::from_slice(tm_slice).expect("tm fits in 256 bytes");
+
+        let msg = AppMessage::ClientDataMsg(ClientData { data });
+
+        let mut buf = [0u8; 4096];
+        let ser = postcard::to_slice(&msg, &mut buf).expect("serialize AppMessage");
+        let payload = Vec::<u8, 4096>::from_slice(ser).expect("payload fits");
+
+        // dest_addr = satellite address, flows through the message.
+        let transport_msg = TransportMessage {
             dest_addr: sat_addr,
-            flags: Default::default(),
-            data: payload,
-        }
+            payload,
+        };
+
+        println!(
+            "[client] tx telemetry ({} samples)",
+            self.pending_telemetry.len()
+        );
+        self.transport
+            .try_send_message(transport_msg)
+            .await
+            .unwrap();
+        self.pending_telemetry.clear();
     }
 
     fn collect_telemetry(&mut self) {
         let tm = Telemetry {
-            temp: 20.0 + self.rand_float() * 15.0,       // 20.0 .. 35.0 °C
-            bat_voltage: 3.3 + self.rand_float() * 0.7,  // 3.3 .. 4.0 V
-            rssi: -((40 + self.rand_u64() % 51) as i32), // -90 .. -40 dBm
+            temp: 20.0 + self.rand_float() * 15.0,
+            bat_voltage: 3.3 + self.rand_float() * 0.7,
+            rssi: -((40 + self.rand_u64() % 51) as i32),
         };
 
         self.pending_telemetry

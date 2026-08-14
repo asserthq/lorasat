@@ -1,0 +1,40 @@
+[
+  {
+    "label": "sandbox-mcu [blinky]",
+    "adapter": "probe-rs",
+    "request": "launch",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "server": "127.0.0.1:50000",
+    "chip": "STM32F401RCTx",
+    "flashingConfig": {
+      "flashingEnabled": true,
+      "haltAfterReset": true
+    },
+    "coreConfigs": [
+      {
+        "coreIndex": 0,
+        "programBinary": "target/thumbv7em-none-eabihf/debug/blinky",
+        "rttEnabled": true
+      }
+    ]
+  },
+  {
+    "label": "[sandbox-mcu lora]",
+    "adapter": "probe-rs",
+    "request": "launch",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "server": "127.0.0.1:50000",
+    "chip": "STM32F401RCTx",
+    "flashingConfig": {
+      "flashingEnabled": true,
+      "haltAfterReset": true
+    },
+    "coreConfigs": [
+      {
+        "coreIndex": 0,
+        "programBinary": "target/thumbv7em-none-eabihf/debug/lora",
+        "rttEnabled": true
+      }
+    ]
+  }
+]

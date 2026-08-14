@@ -265,6 +265,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "defmt-test"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d326e211b94939affafdf96f5c1baf8745b960037dcf763f813597d32b03d51"
+dependencies = [
+ "defmt 1.1.1",
+ "defmt-test-macros",
+ "semihosting",
+]
+
+[[package]]
+name = "defmt-test-macros"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a7563a5468e1a1bd97f44cb75b658c2feec75af2b1389e70f4c0677b8402edd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "document-features"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -997,6 +1019,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "sandbox-mcu"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "defmt-test",
+ "embassy-executor",
+ "embassy-stm32",
+ "embassy-time",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-hal-bus",
+ "panic-probe",
+ "sat-core",
+ "sat-drivers",
+]
+
+[[package]]
 name = "sandbox-pc"
 version = "0.1.0"
 dependencies = [
@@ -1042,12 +1084,12 @@ dependencies = [
  "cortex-m-rt",
  "defmt 1.1.1",
  "defmt-rtt",
+ "defmt-test",
  "embassy-executor",
  "embassy-stm32",
  "embassy-time",
  "panic-probe",
  "sat-core",
- "semihosting",
 ]
 
 [[package]]
