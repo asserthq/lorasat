@@ -45,7 +45,7 @@ where
         freq_hz: u32,
     ) -> Result<Self, Error> {
         // let config = Config {
-        //     chip: Sx1276,
+        //     chip: Sx1262,
         //     tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V7),
         //     use_dcdc: true,
         //     rx_boost: false,
@@ -56,6 +56,8 @@ where
             tcxo_used: false,
             tx_boost: true,
             rx_boost: true,
+            tx_boost: false,
+            rx_boost: false,
         };
 
         let iv = GenericSx127xInterfaceVariant::<CTRL, WAIT>::new(reset, irq, None, None)
@@ -72,6 +74,9 @@ where
                 SpreadingFactor::_9,
                 Bandwidth::_125KHz,
                 CodingRate::_4_8,
+                SpreadingFactor::_7,
+                Bandwidth::_125KHz,
+                CodingRate::_4_5,
                 freq_hz,
             )
             .map_err(|_| Error::CreateModulationParams)?;
