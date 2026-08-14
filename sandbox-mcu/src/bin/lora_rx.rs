@@ -15,13 +15,13 @@ use sandbox_lib as _;
 use sat_core::layer::physical::PhysicalLayer;
 use sat_drivers::lora::Radio;
 
-const LORA_FREQ_IN_HZ: u32 = 435_100_000;
+const LORA_FREQ_IN_HZ: u32 = 433_000_000;
 
 bind_interrupts!(struct Irqs {
     // SPI1 => spi::InterruptHandler<peripheral::SPI1>;
-    DMA1_STREAM4 => dma::InterruptHandler<peripherals::DMA1_CH4>; // SPI TX
-    DMA1_STREAM3 => dma::InterruptHandler<peripherals::DMA1_CH3>; // SPI RX
-    EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>;
+    DMA2_STREAM3 => dma::InterruptHandler<peripherals::DMA2_CH3>; // SPI TX
+    DMA2_STREAM0 => dma::InterruptHandler<peripherals::DMA2_CH0>; // SPI RX
+    EXTI0 => exti::InterruptHandler<interrupt::typelevel::EXTI0>;
 });
 
 #[embassy_executor::main]
@@ -35,14 +35,14 @@ async fn main(_spawner: Spawner) {
 
     // init SPI
 
-    let nss = Output::new(p.PB12, Level::High, Speed::Low);
-    let reset = Output::new(p.PA8, Level::High, Speed::Low);
-    let irq = ExtiInput::new(p.PA9, p.EXTI9, Pull::Up, Irqs);
+    let nss = Output::new(p.PA4, Level::High, Speed::Low);
+    let reset = Output::new(p.PB1, Level::High, Speed::Low);
+    let irq = ExtiInput::new(p.PB0, p.EXTI0, Pull::Up, Irqs);
 
     let mut spi_config = spi::Config::default();
     spi_config.frequency = khz(200);
     let spi = spi::Spi::new(
-        p.SPI2, p.PB13, p.PB15, p.PB14, p.DMA1_CH4, p.DMA1_CH3, Irqs, spi_config,
+        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA2_CH3, p.DMA2_CH0, Irqs, spi_config,
     );
 
     let spi_device = ExclusiveDevice::new(spi, nss, Delay).unwrap();

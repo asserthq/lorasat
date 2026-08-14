@@ -45,7 +45,7 @@ where
         freq_hz: u32,
     ) -> Result<Self, Error> {
         // let config = Config {
-        //     chip: Sx1276,
+        //     chip: Sx1262,
         //     tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V7),
         //     use_dcdc: true,
         //     rx_boost: false,
@@ -54,7 +54,7 @@ where
         let config = Config {
             chip: Sx1276,
             tcxo_used: false,
-            tx_boost: false,
+            tx_boost: true,
             rx_boost: false,
         };
 
@@ -69,9 +69,9 @@ where
 
         let mod_params = lora
             .create_modulation_params(
-                SpreadingFactor::_7,
-                Bandwidth::_125KHz,
-                CodingRate::_4_5,
+                SpreadingFactor::_10,
+                Bandwidth::_250KHz,
+                CodingRate::_4_8,
                 freq_hz,
             )
             .map_err(|_| Error::CreateModulationParams)?;
@@ -80,7 +80,7 @@ where
 
         let rx_pkt_params = lora
             .create_rx_packet_params(preamble_len, false, 255, true, false, &mod_params)
-            .map_err(|_| Error::CreateTxPacketParams)?;
+            .map_err(|_| Error::CreateRxPacketParams)?;
 
         let tx_pkt_params = lora
             .create_tx_packet_params(preamble_len, false, true, false, &mod_params)
@@ -105,7 +105,7 @@ where
     type Error = super::error::Error;
 
     async fn try_send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
-        let power_tx = 5;
+        let power_tx = 20;
         self.lora
             .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, power_tx, payload)
             .await
