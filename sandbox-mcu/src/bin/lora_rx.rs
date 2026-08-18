@@ -28,11 +28,6 @@ bind_interrupts!(struct Irqs {
     EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>;
 });
 
-// ── bitbang SPI (blocking) для SD-карты ──
-// embassy-stm32 SPI — async. embedded-sdmmc хочет blocking SpiDevice.
-// CS управляет сам embedded-sdmmc через отдельный пин, поэтому тут только
-// SCK/MOSI/MISO. Пин подставь под свою распайку.
-
 struct BitbangSpiDevice<SCK, MOSI, MISO, DELAY>
 where
     SCK: OutputPin,
