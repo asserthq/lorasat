@@ -69,9 +69,9 @@ where
 
         let mod_params = lora
             .create_modulation_params(
-                SpreadingFactor::_7,
+                SpreadingFactor::_9,
                 Bandwidth::_125KHz,
-                CodingRate::_4_5,
+                CodingRate::_4_8,
                 freq_hz,
             )
             .map_err(|_| Error::CreateModulationParams)?;

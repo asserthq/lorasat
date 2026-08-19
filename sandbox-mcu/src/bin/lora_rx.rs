@@ -17,7 +17,7 @@ use sandbox_lib as _;
 
 use sat_core::layer::physical::PhysicalLayer;
 use sat_drivers::lora::Radio;
-use sat_drivers::sd::SdCardLogger;
+use sat_drivers::sd::{SdCardLogger, StaticTimeSource};
 
 const LORA_FREQ_IN_HZ: u32 = 435_100_000;
 
@@ -69,7 +69,12 @@ where
             }
             self.sck.set_high().ok();
 
-            read = (read << 1) | if self.miso.is_high().unwrap_or(false) { 1 } else { 0 };
+            read = (read << 1)
+                | if self.miso.is_high().unwrap_or(false) {
+                    1
+                } else {
+                    0
+                };
 
             self.sck.set_low().ok();
             out <<= 1;
@@ -158,14 +163,31 @@ async fn main(_spawner: Spawner) {
         .await
         .unwrap();
 
-    // init SD card (SPI bitbang). TODO: подставь свои пины.
+    // init SD card
     let sd_sck = Output::new(p.PA5, Level::Low, Speed::High);
     let sd_mosi = Output::new(p.PA7, Level::Low, Speed::High);
     let sd_miso = Input::new(p.PA6, Pull::Up);
     let sd_cs = Output::new(p.PA4, Level::High, Speed::High);
 
     let sd_spi = BitbangSpiDevice::new(sd_sck, sd_mosi, sd_miso, Delay);
-    let mut logger = SdCardLogger::new(sd_spi, sd_cs, Delay);
+    let mut logger = SdCardLogger::new(sd_spi, sd_cs, Delay, StaticTimeSource::default());
+
+    match logger.enable_rotation(1_000_000) {
+        Ok(()) => defmt::info!("sd: rotation on, 1 MiB/file"),
+        Err(e) => defmt::error!("sd rotation failed: {}", e),
+    }
+    logger.set_max_total_size(400_000_000);
+
+    match logger.init() {
+        Ok(()) => {
+            defmt::info!(
+                "sd: card size {} bytes",
+                logger.card_size_bytes().unwrap_or(0)
+            );
+            defmt::info!("sd: card type {}", logger.card_type());
+        }
+        Err(e) => defmt::error!("sd init failed: {}", e),
+    }
 
     // main loop
 
@@ -175,7 +197,11 @@ async fn main(_spawner: Spawner) {
         match radio.try_recv_bytes(&mut buf).await {
             Ok(recv) => {
                 defmt::info!("-> {}", recv);
-                match logger.append(recv) {
+                let mut frame = [0u8; 256];
+                frame[0] = recv.len() as u8;
+                frame[1..1 + recv.len()].copy_from_slice(recv);
+
+                match logger.append(&frame[..1 + recv.len()]) {
                     Ok(()) => defmt::info!("sd: logged {} bytes", recv.len()),
                     Err(e) => defmt::error!("sd write failed: {}", e),
                 }
