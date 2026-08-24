@@ -54,8 +54,8 @@ where
         let config = Config {
             chip: Sx1276,
             tcxo_used: false,
-            tx_boost: false,
-            rx_boost: false,
+            tx_boost: true,
+            rx_boost: true,
         };
 
         let iv = GenericSx127xInterfaceVariant::<CTRL, WAIT>::new(reset, irq, None, None)
