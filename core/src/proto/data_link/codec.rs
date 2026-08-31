@@ -32,19 +32,19 @@ impl<P: PhysicalLayer + Debug> DataLinkCodec<P> {
 impl<P: PhysicalLayer + Debug> DataLinkLayer for DataLinkCodec<P> {
     type Error = CodecError<P>;
 
-    async fn try_send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error> {
+    async fn send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error> {
         let mut buf = [0u8; 256];
         let payload = Self::encode(&frame, &mut buf)?;
         self.phy
-            .try_send_bytes(payload)
+            .send_bytes(payload)
             .await
             .map_err(CodecError::Physical)
     }
 
-    async fn try_recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error> {
+    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error> {
         let payload = self
             .phy
-            .try_recv_bytes(buf)
+            .recv_bytes(buf)
             .await
             .map_err(CodecError::Physical)?;
         Self::decode(payload)

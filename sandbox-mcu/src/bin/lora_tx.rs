@@ -58,7 +58,7 @@ async fn main(_spawner: Spawner) {
     loop {
         info!("sending...");
         let buf = b"helo";
-        match radio.try_send_bytes(buf).await {
+        match radio.send_bytes(buf).await {
             Ok(()) => defmt::info!("<- {}", buf),
             Err(_) => defmt::error!("send failed"),
         }

@@ -23,7 +23,7 @@ impl<L: DataLinkLayer + Debug> SimpleTransport<L> {
 impl<L: DataLinkLayer + Debug> TransportLayer for SimpleTransport<L> {
     type Error = SimpleError<L>;
 
-    async fn try_send_message(&mut self, msg: TransportMessage) -> Result<(), Self::Error> {
+    async fn send_message(&mut self, msg: TransportMessage) -> Result<(), Self::Error> {
         let ser = postcard::to_slice(&msg, &mut self.buf).unwrap();
         let datalink_payload = Vec::from_slice(ser).unwrap();
 
@@ -37,15 +37,15 @@ impl<L: DataLinkLayer + Debug> TransportLayer for SimpleTransport<L> {
             payload: datalink_payload,
         };
 
-        self.link.try_send_frame(frame).await.unwrap();
+        self.link.send_frame(frame).await.unwrap();
         Ok(())
     }
 
-    async fn try_recv_message<'a>(
+    async fn recv_message<'a>(
         &'a mut self,
         buf: &'a mut [u8],
     ) -> Result<TransportMessage, Self::Error> {
-        let frame = self.link.try_recv_frame(buf).await.unwrap();
+        let frame = self.link.recv_frame(buf).await.unwrap();
         let datalink_payload = frame.payload;
         let msg = postcard::from_bytes(&datalink_payload).unwrap();
         Ok(msg)

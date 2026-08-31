@@ -31,12 +31,12 @@ impl UdpPhysicalMock {
 impl PhysicalLayer for UdpPhysicalMock {
     type Error = io::Error;
 
-    async fn try_send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
+    async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
         self.socket.send_to(payload, self.remote).await?;
         Ok(())
     }
 
-    async fn try_recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+    async fn recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
         let (len, _) = self.socket.recv_from(buf).await?;
         Ok(&mut buf[..len])
     }

@@ -62,7 +62,7 @@ impl<T: TransportLayer> ClientDevice<T> {
     async fn wait_beacon(&mut self) -> Beacon {
         loop {
             let mut buf = [0u8; 4096];
-            let msg = self.transport.try_recv_message(&mut buf).await.unwrap();
+            let msg = self.transport.recv_message(&mut buf).await.unwrap();
             if let Ok(AppMessage::BeaconMsg(beacon)) = postcard::from_bytes(&msg.payload) {
                 return beacon;
             }
@@ -97,10 +97,7 @@ impl<T: TransportLayer> ClientDevice<T> {
             "[client] tx telemetry ({} samples)",
             self.pending_telemetry.len()
         );
-        self.transport
-            .try_send_message(transport_msg)
-            .await
-            .unwrap();
+        self.transport.send_message(transport_msg).await.unwrap();
         self.pending_telemetry.clear();
     }
 

@@ -104,7 +104,7 @@ where
 {
     type Error = super::error::Error;
 
-    async fn try_send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
+    async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
         let power_tx = 20;
         self.lora
             .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, power_tx, payload)
@@ -115,7 +115,7 @@ where
         Ok(())
     }
 
-    async fn try_recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+    async fn recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
         self.lora
             .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
             .await

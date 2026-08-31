@@ -81,7 +81,7 @@ impl<T: TransportLayer> Satellite<T> {
             payload: payload.clone(),
         };
         self.transport_client
-            .try_send_message(client_msg)
+            .send_message(client_msg)
             .await
             .unwrap();
 
@@ -90,12 +90,12 @@ impl<T: TransportLayer> Satellite<T> {
             header: TransportHeader { dest_addr: GS_ADDR },
             payload,
         };
-        self.transport_gs.try_send_message(gs_msg).await.unwrap();
+        self.transport_gs.send_message(gs_msg).await.unwrap();
     }
 
     async fn recv_msg(transport: &mut T) -> AppMessage {
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
-        let msg = transport.try_recv_message(&mut buf).await.unwrap();
+        let msg = transport.recv_message(&mut buf).await.unwrap();
         let app_msg: AppMessage = postcard::from_bytes(&msg.payload).unwrap();
         app_msg
     }
@@ -122,10 +122,7 @@ impl<T: TransportLayer> Satellite<T> {
             payload,
         };
 
-        self.transport_gs
-            .try_send_message(transport_msg)
-            .await
-            .unwrap();
+        self.transport_gs.send_message(transport_msg).await.unwrap();
 
         println!("[sat] [tx_gs] send big message: {:?}", msg);
     }

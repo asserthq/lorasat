@@ -11,8 +11,8 @@ pub const MAX_DATALINK_PAYLOAD: usize = MAX_PHYSICAL_PAYLOAD - size_of::<FrameHe
 pub trait DataLinkLayer {
     type Error: Debug;
 
-    async fn try_send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error>;
-    async fn try_recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error>;
+    async fn send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error>;
+    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -58,16 +58,13 @@ impl<T: TransportLayer> GroundStation<T> {
             payload,
         };
 
-        self.transport
-            .try_send_message(transport_msg)
-            .await
-            .unwrap();
+        self.transport.send_message(transport_msg).await.unwrap();
         println!("[gs] [tx_sat] request client data");
     }
 
     async fn wait_beacon(&mut self) -> Option<Beacon> {
         let mut buf = [0u8; 4096];
-        let transport_msg = self.transport.try_recv_message(&mut buf).await.unwrap();
+        let transport_msg = self.transport.recv_message(&mut buf).await.unwrap();
 
         let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
 
@@ -79,7 +76,7 @@ impl<T: TransportLayer> GroundStation<T> {
 
     async fn recv_msg(transport: &mut T) -> AppMessage {
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
-        let transport_msg = transport.try_recv_message(&mut buf).await.unwrap();
+        let transport_msg = transport.recv_message(&mut buf).await.unwrap();
         let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
         app_msg
     }

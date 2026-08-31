@@ -6,11 +6,8 @@ use serde::{Deserialize, Serialize};
 pub trait AppLayer {
     type Error: Debug;
 
-    async fn try_send_message(&mut self, msg: AppMessage) -> Result<(), Self::Error>;
-    async fn try_recv_message<'a>(
-        &'a mut self,
-        buf: &'a mut [u8],
-    ) -> Result<AppMessage, Self::Error>;
+    async fn send_message(&mut self, msg: AppMessage) -> Result<(), Self::Error>;
+    async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<AppMessage, Self::Error>;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -194,7 +194,7 @@ async fn main(_spawner: Spawner) {
     loop {
         info!("receiving...");
         let mut buf = [0u8; 255];
-        match radio.try_recv_bytes(&mut buf).await {
+        match radio.recv_bytes(&mut buf).await {
             Ok(recv) => {
                 defmt::info!("-> {}", recv);
                 let mut frame = [0u8; 256];
