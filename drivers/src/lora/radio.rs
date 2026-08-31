@@ -45,7 +45,7 @@ where
         freq_hz: u32,
     ) -> Result<Self, Error> {
         // let config = Config {
-        //     chip: Sx1262,
+        //     chip: Sx1276,
         //     tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V7),
         //     use_dcdc: true,
         //     rx_boost: false,
@@ -55,7 +55,7 @@ where
             chip: Sx1276,
             tcxo_used: false,
             tx_boost: true,
-            rx_boost: false,
+            rx_boost: true,
         };
 
         let iv = GenericSx127xInterfaceVariant::<CTRL, WAIT>::new(reset, irq, None, None)
@@ -69,8 +69,8 @@ where
 
         let mod_params = lora
             .create_modulation_params(
-                SpreadingFactor::_10,
-                Bandwidth::_250KHz,
+                SpreadingFactor::_9,
+                Bandwidth::_125KHz,
                 CodingRate::_4_8,
                 freq_hz,
             )
