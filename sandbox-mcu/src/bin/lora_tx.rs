@@ -15,7 +15,7 @@ use sandbox_lib as _;
 use sat_core::layer::physical::PhysicalLayer;
 use sat_drivers::lora::Radio;
 
-const LORA_FREQ_IN_HZ: u32 = 435_100_000;
+const LORA_FREQ_IN_HZ: u32 = 433_000_000;
 
 bind_interrupts!(struct Irqs {
     // SPI1 => spi::InterruptHandler<peripheral::SPI1>;
