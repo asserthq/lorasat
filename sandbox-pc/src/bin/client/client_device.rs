@@ -1,8 +1,8 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use heapless::Vec;
-use sat_core::layer::app::AppMessage;
-use sat_core::layer::transport::{TransportLayer, TransportMessage};
+use sat_core::layer::app::Message;
+use sat_core::layer::transport::{Packet, TransportLayer};
 use sat_core::message::beacon::Beacon;
 use sat_core::message::client_data::ClientData;
 
@@ -63,7 +63,7 @@ impl<T: TransportLayer> ClientDevice<T> {
         loop {
             let mut buf = [0u8; 4096];
             let msg = self.transport.recv_message(&mut buf).await.unwrap();
-            if let Ok(AppMessage::BeaconMsg(beacon)) = postcard::from_bytes(&msg.payload) {
+            if let Ok(Message::BeaconMsg(beacon)) = postcard::from_bytes(&msg.payload) {
                 return beacon;
             }
         }
@@ -81,14 +81,14 @@ impl<T: TransportLayer> ClientDevice<T> {
             .expect("tm encode error");
         let data = Vec::<u8, 256>::from_slice(tm_slice).expect("tm fits in 256 bytes");
 
-        let msg = AppMessage::ClientDataMsg(ClientData { data });
+        let msg = Message::ClientDataMsg(ClientData { data });
 
         let mut buf = [0u8; 4096];
         let ser = postcard::to_slice(&msg, &mut buf).expect("serialize AppMessage");
         let payload = Vec::<u8, 4096>::from_slice(ser).expect("payload fits");
 
         // dest_addr = satellite address, flows through the message.
-        let transport_msg = TransportMessage {
+        let transport_msg = Packet {
             dest_addr: sat_addr,
             payload,
         };

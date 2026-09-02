@@ -5,4 +5,5 @@ pub mod error;
 pub mod layer;
 pub mod message;
 pub mod proto;
+pub mod storage;
 pub mod time;

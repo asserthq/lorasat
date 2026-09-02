@@ -1,9 +1,9 @@
 use core::time::Duration;
 use sandbox_pc::addr::SAT_ADDR;
-use sat_core::layer::app::AppMessage;
+use sat_core::layer::app::Message;
 use sat_core::layer::transport::{
-    MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, TransportHeader, TransportLayer,
-    TransportMessage,
+    MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, Packet, PacketHeader,
+    TransportLayer,
 };
 use sat_core::message::{Beacon, GroundCommand};
 
@@ -29,8 +29,8 @@ impl<T: TransportLayer> GroundStation<T> {
                 sat_msg = rx_sat => {
                     print!("[gs] [rx_sat] ");
                     match sat_msg {
-                        AppMessage::BeaconMsg(beacon) => println!("{:?}", beacon),
-                        AppMessage::ClientDataMsg(client_data) => println!("{:?}", client_data),
+                        Message::BeaconMsg(beacon) => println!("{:?}", beacon),
+                        Message::ClientDataMsg(client_data) => println!("{:?}", client_data),
                         msg => println!("nonsense: {:?}", msg)
                     }
                 }
@@ -44,15 +44,15 @@ impl<T: TransportLayer> GroundStation<T> {
 
     async fn request_data(&mut self) {
         let cmd = GroundCommand::RequestClientData;
-        let msg = AppMessage::GndCommandMsg(cmd);
+        let msg = Message::GndCommandMsg(cmd);
 
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
         let ser = postcard::to_slice(&msg, &mut buf).unwrap();
         let payload = Vec::<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>::from_slice(ser).unwrap();
 
         // dest_addr flows through the message
-        let transport_msg = TransportMessage {
-            header: TransportHeader {
+        let transport_msg = Packet {
+            header: PacketHeader {
                 dest_addr: SAT_ADDR,
             },
             payload,
@@ -66,18 +66,18 @@ impl<T: TransportLayer> GroundStation<T> {
         let mut buf = [0u8; 4096];
         let transport_msg = self.transport.recv_message(&mut buf).await.unwrap();
 
-        let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
+        let app_msg: Message = postcard::from_bytes(&transport_msg.payload).unwrap();
 
         match app_msg {
-            AppMessage::BeaconMsg(beacon) => Some(beacon),
+            Message::BeaconMsg(beacon) => Some(beacon),
             _ => None,
         }
     }
 
-    async fn recv_msg(transport: &mut T) -> AppMessage {
+    async fn recv_msg(transport: &mut T) -> Message {
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
         let transport_msg = transport.recv_message(&mut buf).await.unwrap();
-        let app_msg: AppMessage = postcard::from_bytes(&transport_msg.payload).unwrap();
+        let app_msg: Message = postcard::from_bytes(&transport_msg.payload).unwrap();
         app_msg
     }
 }

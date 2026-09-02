@@ -2,7 +2,7 @@ mod satellite;
 
 use sandbox_pc::udp_physical_mock::UdpPhysicalMock;
 use sandbox_pc::udp_ports::{CLIENT_PORT, GS_PORT, SAT_PORT_435, SAT_PORT_868};
-use sat_core::proto::data_link::codec::DataLinkCodec;
+use sat_core::proto::link::codec::DataLinkCodec;
 use sat_core::proto::transport::simple::SimpleTransport;
 use satellite::Satellite;
 

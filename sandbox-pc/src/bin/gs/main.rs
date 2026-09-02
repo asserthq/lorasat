@@ -4,7 +4,7 @@ use ground_station::GroundStation;
 
 use sandbox_pc::udp_physical_mock::UdpPhysicalMock;
 use sandbox_pc::udp_ports::{GS_PORT, SAT_PORT_435};
-use sat_core::proto::data_link::codec::DataLinkCodec;
+use sat_core::proto::link::codec::DataLinkCodec;
 //use sat_core::proto::transport::frp::FrpTransport;
 use sat_core::proto::transport::simple::SimpleTransport;
 

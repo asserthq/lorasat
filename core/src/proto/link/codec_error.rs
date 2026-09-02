@@ -1,16 +1,16 @@
 use core::fmt::Debug;
 
 use crate::error;
-use crate::layer::physical::PhysicalLayer;
+use crate::layer::phy::PhyLayer;
 
 #[derive(Debug, PartialEq)]
-pub enum CodecError<P: PhysicalLayer + Debug> {
+pub enum CodecError<P: PhyLayer + Debug> {
     Encode,
     Decode,
     Physical(P::Error),
 }
 
-impl<P: PhysicalLayer + Debug> From<postcard::Error> for CodecError<P> {
+impl<P: PhyLayer + Debug> From<postcard::Error> for CodecError<P> {
     fn from(e: postcard::Error) -> Self {
         match e {
             postcard::Error::SerializeBufferFull
@@ -24,7 +24,7 @@ impl<P: PhysicalLayer + Debug> From<postcard::Error> for CodecError<P> {
     }
 }
 
-impl<P: PhysicalLayer + Debug> From<error::Error> for CodecError<P> {
+impl<P: PhyLayer + Debug> From<error::Error> for CodecError<P> {
     fn from(e: error::Error) -> Self {
         match e {
             error::Error::DataLinkEncode => CodecError::Encode,

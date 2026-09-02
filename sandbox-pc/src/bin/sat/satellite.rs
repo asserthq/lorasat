@@ -2,10 +2,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use heapless::Vec;
 use sandbox_pc::addr::{CLIENT_ADDR, GS_ADDR, SAT_ADDR};
-use sat_core::layer::app::AppMessage;
+use sat_core::layer::app::Message;
 use sat_core::layer::transport::{
-    MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, TransportHeader, TransportLayer,
-    TransportMessage,
+    MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, Packet, PacketHeader,
+    TransportLayer,
 };
 use sat_core::message::{Beacon, ClientData, GroundCommand, SatelliteData};
 
@@ -40,7 +40,7 @@ impl<T: TransportLayer> Satellite<T> {
                 client_msg = rx_client => {
                     print!("[sat] [rx_client] ");
                     match client_msg {
-                        AppMessage::ClientDataMsg(client_data) => println!("{:?}", client_data),
+                        Message::ClientDataMsg(client_data) => println!("{:?}", client_data),
                         msg => println!("nonsense: {:?}", msg)
                     };
                 }
@@ -48,7 +48,7 @@ impl<T: TransportLayer> Satellite<T> {
                 gs_msg = rx_gs => {
                     print!("[sat] [rx_client] ");
                     match gs_msg {
-                        AppMessage::GndCommandMsg(gnd_cmd) => self.handle_command(gnd_cmd).await,
+                        Message::GndCommandMsg(gnd_cmd) => self.handle_command(gnd_cmd).await,
                         msg => println!("nonsense: {:?}", msg),
                     };
                 }
@@ -69,13 +69,13 @@ impl<T: TransportLayer> Satellite<T> {
         println!("[sat] tx beacon: {beacon:?}");
 
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
-        let msg = AppMessage::BeaconMsg(beacon);
+        let msg = Message::BeaconMsg(beacon);
         let ser = postcard::to_slice(&msg, &mut buf).unwrap();
         let payload = Vec::<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>::from_slice(ser).unwrap();
 
         // Send to client (868 MHz).
-        let client_msg = TransportMessage {
-            header: TransportHeader {
+        let client_msg = Packet {
+            header: PacketHeader {
                 dest_addr: CLIENT_ADDR,
             },
             payload: payload.clone(),
@@ -86,17 +86,17 @@ impl<T: TransportLayer> Satellite<T> {
             .unwrap();
 
         // Send to ground (435 MHz).
-        let gs_msg = TransportMessage {
-            header: TransportHeader { dest_addr: GS_ADDR },
+        let gs_msg = Packet {
+            header: PacketHeader { dest_addr: GS_ADDR },
             payload,
         };
         self.transport_gs.send_message(gs_msg).await.unwrap();
     }
 
-    async fn recv_msg(transport: &mut T) -> AppMessage {
+    async fn recv_msg(transport: &mut T) -> Message {
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];
         let msg = transport.recv_message(&mut buf).await.unwrap();
-        let app_msg: AppMessage = postcard::from_bytes(&msg.payload).unwrap();
+        let app_msg: Message = postcard::from_bytes(&msg.payload).unwrap();
         app_msg
     }
 
@@ -117,8 +117,8 @@ impl<T: TransportLayer> Satellite<T> {
         let ser = postcard::to_slice(&msg, &mut buf).unwrap();
         let payload = Vec::<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>::from_slice(ser).unwrap();
 
-        let transport_msg = TransportMessage {
-            header: TransportHeader { dest_addr: GS_ADDR },
+        let transport_msg = Packet {
+            header: PacketHeader { dest_addr: GS_ADDR },
             payload,
         };
 
@@ -139,8 +139,8 @@ impl<T: TransportLayer> Satellite<T> {
         }
     }
 
-    fn create_big_message() -> AppMessage {
+    fn create_big_message() -> Message {
         let data = Vec::from_array([7u8; 25]);
-        AppMessage::ClientDataMsg(ClientData { data })
+        Message::ClientDataMsg(ClientData { data })
     }
 }

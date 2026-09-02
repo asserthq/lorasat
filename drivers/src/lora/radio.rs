@@ -1,5 +1,5 @@
 use embedded_hal::digital::OutputPin;
-use sat_core::layer::physical::PhysicalLayer;
+use sat_core::layer::phy::PhyLayer;
 
 use lora_phy::{
     DelayNs, LoRa,
@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<SPI, CTRL, WAIT, DLY> PhysicalLayer for Radio<SPI, CTRL, WAIT, DLY>
+impl<SPI, CTRL, WAIT, DLY> PhyLayer for Radio<SPI, CTRL, WAIT, DLY>
 where
     SPI: SpiDevice<u8>,
     CTRL: OutputPin,

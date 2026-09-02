@@ -1,24 +1,24 @@
-use crate::layer::physical::MAX_PHYSICAL_PAYLOAD;
+use crate::layer::phy::MAX_PHY_PAYLOAD;
 use core::mem::size_of;
 use heapless::Vec;
 use serde::{Deserialize, Serialize};
 
 use core::fmt::Debug;
 
-pub const MAX_DATALINK_PAYLOAD: usize = MAX_PHYSICAL_PAYLOAD - size_of::<FrameHeader>();
+pub const MAX_LINK_PAYLOAD: usize = MAX_PHY_PAYLOAD - size_of::<FrameHeader>();
 
 #[allow(async_fn_in_trait)]
-pub trait DataLinkLayer {
+pub trait LinkLayer {
     type Error: Debug;
 
-    async fn send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error>;
-    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error>;
+    async fn send_frame(&mut self, frame: Frame) -> Result<(), Self::Error>;
+    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<Frame, Self::Error>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DataLinkFrame {
+pub struct Frame {
     pub header: FrameHeader,
-    pub payload: Vec<u8, MAX_DATALINK_PAYLOAD>,
+    pub payload: Vec<u8, MAX_LINK_PAYLOAD>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

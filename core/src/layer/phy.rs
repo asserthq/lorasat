@@ -1,9 +1,9 @@
 use core::fmt::Debug;
 
-pub const MAX_PHYSICAL_PAYLOAD: usize = 255;
+pub const MAX_PHY_PAYLOAD: usize = 255;
 
 #[allow(async_fn_in_trait)]
-pub trait PhysicalLayer {
+pub trait PhyLayer {
     type Error: Debug;
 
     async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error>;

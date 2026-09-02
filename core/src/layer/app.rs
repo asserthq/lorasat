@@ -6,12 +6,12 @@ use serde::{Deserialize, Serialize};
 pub trait AppLayer {
     type Error: Debug;
 
-    async fn send_message(&mut self, msg: AppMessage) -> Result<(), Self::Error>;
-    async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<AppMessage, Self::Error>;
+    async fn send_message(&mut self, msg: Message) -> Result<(), Self::Error>;
+    async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<Message, Self::Error>;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AppMessage {
+pub enum Message {
     BeaconMsg(Beacon),
     ClientDataMsg(ClientData),
 

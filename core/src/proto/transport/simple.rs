@@ -1,16 +1,16 @@
 use core::fmt::Debug;
 use heapless::Vec;
 
-use crate::layer::data_link::{DataLinkFrame, DataLinkLayer, FrameHeader, FrameKind};
-use crate::layer::transport::{MAX_TRANSPORT_CHUNK_PAYLOAD, TransportLayer, TransportMessage};
+use crate::layer::link::{Frame, FrameHeader, FrameKind, LinkLayer};
+use crate::layer::transport::{MAX_TRANSPORT_CHUNK_PAYLOAD, Packet, TransportLayer};
 
-pub struct SimpleTransport<L: DataLinkLayer + Debug> {
+pub struct SimpleTransport<L: LinkLayer + Debug> {
     addr: u32,
     link: L,
     buf: [u8; MAX_TRANSPORT_CHUNK_PAYLOAD],
 }
 
-impl<L: DataLinkLayer + Debug> SimpleTransport<L> {
+impl<L: LinkLayer + Debug> SimpleTransport<L> {
     pub fn new(addr: u32, link: L) -> Self {
         Self {
             addr,
@@ -20,14 +20,14 @@ impl<L: DataLinkLayer + Debug> SimpleTransport<L> {
     }
 }
 
-impl<L: DataLinkLayer + Debug> TransportLayer for SimpleTransport<L> {
+impl<L: LinkLayer + Debug> TransportLayer for SimpleTransport<L> {
     type Error = SimpleError<L>;
 
-    async fn send_message(&mut self, msg: TransportMessage) -> Result<(), Self::Error> {
+    async fn send_message(&mut self, msg: Packet) -> Result<(), Self::Error> {
         let ser = postcard::to_slice(&msg, &mut self.buf).unwrap();
         let datalink_payload = Vec::from_slice(ser).unwrap();
 
-        let frame = DataLinkFrame {
+        let frame = Frame {
             header: FrameHeader {
                 kind: FrameKind::Transport,
                 src_addr: self.addr,
@@ -41,10 +41,7 @@ impl<L: DataLinkLayer + Debug> TransportLayer for SimpleTransport<L> {
         Ok(())
     }
 
-    async fn recv_message<'a>(
-        &'a mut self,
-        buf: &'a mut [u8],
-    ) -> Result<TransportMessage, Self::Error> {
+    async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<Packet, Self::Error> {
         let frame = self.link.recv_frame(buf).await.unwrap();
         let datalink_payload = frame.payload;
         let msg = postcard::from_bytes(&datalink_payload).unwrap();
@@ -53,7 +50,7 @@ impl<L: DataLinkLayer + Debug> TransportLayer for SimpleTransport<L> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum SimpleError<L: DataLinkLayer + Debug> {
+pub enum SimpleError<L: LinkLayer + Debug> {
     Error,
     DataLink(L::Error),
 }

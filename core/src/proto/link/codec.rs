@@ -1,5 +1,5 @@
-use crate::layer::data_link::{DataLinkFrame, DataLinkLayer};
-use crate::layer::physical::PhysicalLayer;
+use crate::layer::link::{Frame, LinkLayer};
+use crate::layer::phy::PhyLayer;
 
 use core::fmt::Debug;
 
@@ -11,28 +11,28 @@ use super::codec_error::CodecError;
 /// Input: `DataLinkFrame` (from Transport or Application).
 /// Output: bytes to Physical.
 #[derive(Debug)]
-pub struct DataLinkCodec<P: PhysicalLayer + Debug> {
+pub struct DataLinkCodec<P: PhyLayer + Debug> {
     phy: P,
 }
 
-impl<P: PhysicalLayer + Debug> DataLinkCodec<P> {
+impl<P: PhyLayer + Debug> DataLinkCodec<P> {
     pub fn new(phy: P) -> Self {
         Self { phy }
     }
 
-    fn encode<'a>(frame: &DataLinkFrame, buf: &'a mut [u8]) -> Result<&'a mut [u8], CodecError<P>> {
+    fn encode<'a>(frame: &Frame, buf: &'a mut [u8]) -> Result<&'a mut [u8], CodecError<P>> {
         postcard::to_slice(frame, buf).map_err(CodecError::from)
     }
 
-    fn decode(raw: &[u8]) -> Result<DataLinkFrame, CodecError<P>> {
+    fn decode(raw: &[u8]) -> Result<Frame, CodecError<P>> {
         postcard::from_bytes(raw).map_err(CodecError::from)
     }
 }
 
-impl<P: PhysicalLayer + Debug> DataLinkLayer for DataLinkCodec<P> {
+impl<P: PhyLayer + Debug> LinkLayer for DataLinkCodec<P> {
     type Error = CodecError<P>;
 
-    async fn send_frame(&mut self, frame: DataLinkFrame) -> Result<(), Self::Error> {
+    async fn send_frame(&mut self, frame: Frame) -> Result<(), Self::Error> {
         let mut buf = [0u8; 256];
         let payload = Self::encode(&frame, &mut buf)?;
         self.phy
@@ -41,7 +41,7 @@ impl<P: PhysicalLayer + Debug> DataLinkLayer for DataLinkCodec<P> {
             .map_err(CodecError::Physical)
     }
 
-    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<DataLinkFrame, Self::Error> {
+    async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<Frame, Self::Error> {
         let payload = self
             .phy
             .recv_bytes(buf)

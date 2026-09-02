@@ -10,10 +10,10 @@ name = "sandbox_lib"
 harness = false
 
 [[bin]]
-name = "lora_tx"
+name = "tx"
 
 [[bin]]
-name = "lora_rx"
+name = "rx"
 
 [[bin]]
 name = "blinky"

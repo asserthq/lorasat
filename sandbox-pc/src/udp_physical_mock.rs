@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 
 use tokio::net::UdpSocket;
 
-use sat_core::layer::physical::PhysicalLayer;
+use sat_core::layer::phy::PhyLayer;
 
 /// UDP-backed async transceiver for sandbox testing.
 ///
@@ -28,7 +28,7 @@ impl UdpPhysicalMock {
     }
 }
 
-impl PhysicalLayer for UdpPhysicalMock {
+impl PhyLayer for UdpPhysicalMock {
     type Error = io::Error;
 
     async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {

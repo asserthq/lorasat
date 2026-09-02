@@ -6,7 +6,7 @@ use std::io;
 use client_device::ClientDevice;
 use sandbox_pc::udp_physical_mock::UdpPhysicalMock;
 use sandbox_pc::udp_ports::{CLIENT_PORT, SAT_PORT_868};
-use sat_core::proto::data_link::codec::DataLinkCodec;
+use sat_core::proto::link::codec::DataLinkCodec;
 use sat_core::proto::transport::simple::SimpleTransport;
 
 #[tokio::main(flavor = "current_thread")]
