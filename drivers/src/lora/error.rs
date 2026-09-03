@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, defmt::Format)]
 pub enum Error {
     CreateInterfaceVariant,
     CreateLora,
