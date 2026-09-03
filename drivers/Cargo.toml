@@ -16,4 +16,5 @@ embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
 embedded-hal-bus = { version = "0.3.0", features = ["defmt-03"] }
 lora-phy = "3.0.1"
 embedded-sdmmc = { version = "0.7.0", default-features = false, features = ["defmt-log"] }
+embedded-io-async = "0.7"
 #sx126x = "0.3.0"
