@@ -7,7 +7,7 @@ use core::mem::size_of;
 use crate::layer::link::MAX_LINK_PAYLOAD;
 
 pub const MAX_TRANSPORT_CHUNK_PAYLOAD: usize = MAX_LINK_PAYLOAD - size_of::<PacketHeader>();
-pub const MAX_TRANSPORT_MESSAGE_PAYLOAD: usize = MAX_TRANSPORT_CHUNK_PAYLOAD * 256;
+pub const MAX_TRANSPORT_MESSAGE_PAYLOAD: usize = MAX_TRANSPORT_CHUNK_PAYLOAD * 1;
 
 #[allow(async_fn_in_trait)]
 pub trait TransportLayer {
