@@ -1,26 +1,24 @@
 #![no_std]
 
-use defmt_rtt as _; // global logger
+use defmt_rtt as _;
 
-use embassy_stm32 as _; // memory layout
+use embassy_stm32 as _;
 
 use panic_probe as _;
 
-// same panicking *behavior* as `panic-probe` but doesn't print a panic message
-// this prevents the panic message being printed *twice* when `defmt::panic` is invoked
+pub mod shell;
+
 #[defmt::panic_handler]
 fn panic() -> ! {
     cortex_m::asm::udf()
 }
 
-/// Terminates the application.
 pub fn exit() -> ! {
     loop {
         cortex_m::asm::bkpt();
     }
 }
 
-/// Hardfault handler.
 #[cortex_m_rt::exception]
 unsafe fn HardFault(_frame: &cortex_m_rt::ExceptionFrame) -> ! {
     loop {
@@ -28,9 +26,6 @@ unsafe fn HardFault(_frame: &cortex_m_rt::ExceptionFrame) -> ! {
     }
 }
 
-// defmt-test 0.3.0 has the limitation that this `#[tests]` attribute can only be used
-// once within a crate. the module can be in any file but there can only be at most
-// one `#[tests]` module in this library crate
 #[cfg(test)]
 #[defmt_test::tests]
 mod unit_tests {
