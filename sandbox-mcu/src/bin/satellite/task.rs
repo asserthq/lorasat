@@ -3,6 +3,16 @@ use sat_core::layer::phy::PhyLayer;
 use sat_core::message::GroundCommand;
 use sat_core::storage::Logger;
 
+fn command_reply(cmd: &GroundCommand) -> &'static [u8] {
+    match cmd {
+        GroundCommand::RequestSatTelemetry => b"executed: RequestSatTelemetry",
+        GroundCommand::RequestClientData => b"executed: RequestClientData",
+        GroundCommand::ChangeBeaconInterval(_) => b"executed: ChangeBeaconInterval",
+        GroundCommand::SetTime(_) => b"executed: SetTime",
+        GroundCommand::Ping => b"executed: Ping",
+    }
+}
+
 pub async fn sat_task<L>(mut phy: impl PhyLayer, mut logger: L)
 where
     L: Logger,
@@ -24,7 +34,14 @@ where
                 }
 
                 match postcard::from_bytes::<GroundCommand>(recv) {
-                    Ok(cmd) => info!("cmd received: {:?}", cmd),
+                    Ok(cmd) => {
+                        info!("cmd received: {:?}", cmd);
+                        let reply = command_reply(&cmd);
+                        match phy.send_bytes(reply).await {
+                            Ok(()) => info!("reply sent: {}", reply),
+                            Err(_) => error!("reply send failed"),
+                        }
+                    }
                     Err(_) => error!("decode failed"),
                 }
             }

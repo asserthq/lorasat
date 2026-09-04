@@ -40,6 +40,17 @@ where
                     },
                     Err(_) => error!("serialize failed"),
                 }
+
+                let mut reply_buf = [0u8; 255];
+                match radio.recv_bytes(&mut reply_buf).await {
+                    Ok(reply) => {
+                        shell.inner_mut().write_all(b"sat: ").await.unwrap();
+                        shell.inner_mut().write_all(reply).await.unwrap();
+                        shell.inner_mut().write_all(b"\r\n").await.unwrap();
+                        info!("rx reply: {}", reply);
+                    }
+                    Err(e) => error!("rx reply failed: {:?}", e),
+                }
             }
             None => {
                 shell
