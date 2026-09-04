@@ -1,7 +1,7 @@
 use heapless::Vec;
 use serde::{Deserialize, Serialize};
 
-use super::frp_error::FrpError;
+use super::error::TransportError;
 
 pub const PROTOCOL_ID: u8 = 0x01;
 pub const TYPE_START: u8 = 0x01;

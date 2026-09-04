@@ -361,6 +361,9 @@ name = "embassy-futures"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc2d050bdc5c21e0862a89256ed8029ae6c290a93aecefc73084b3002cdebb01"
+dependencies = [
+ "defmt 1.1.1",
+]
 
 [[package]]
 name = "embassy-hal-internal"
@@ -1136,8 +1139,11 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async 0.7.0",
  "embedded-sdmmc",
+ "heapless 0.9.3",
  "lora-phy",
+ "postcard",
  "sat-core",
+ "serde",
 ]
 
 [[package]]
@@ -1150,10 +1156,16 @@ dependencies = [
  "defmt-rtt",
  "defmt-test",
  "embassy-executor",
+ "embassy-futures",
  "embassy-stm32",
  "embassy-time",
+ "embedded-hal-bus",
+ "heapless 0.9.3",
  "panic-probe",
+ "postcard",
  "sat-core",
+ "sat-drivers",
+ "serde",
 ]
 
 [[package]]
