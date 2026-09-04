@@ -1,36 +1,32 @@
-use crate::layer::link::{Frame, LinkLayer};
-use crate::layer::phy::PhyLayer;
-
-use core::fmt::Debug;
-
-use super::codec_error::CodecError;
+use super::error::LinkError;
+use sat_core::layer::link::{Frame, LinkLayer};
+use sat_core::layer::phy::PhyLayer;
 
 /// Postcard-based DataLinkLayer implementation.
 ///
 /// Serializes `DataLinkFrame` to bytes for `PhysicalLayer`.
 /// Input: `DataLinkFrame` (from Transport or Application).
 /// Output: bytes to Physical.
-#[derive(Debug)]
-pub struct DataLinkCodec<P: PhyLayer + Debug> {
+pub struct LinkImpl<P: PhyLayer> {
     phy: P,
 }
 
-impl<P: PhyLayer + Debug> DataLinkCodec<P> {
+impl<P: PhyLayer> LinkImpl<P> {
     pub fn new(phy: P) -> Self {
         Self { phy }
     }
 
-    fn encode<'a>(frame: &Frame, buf: &'a mut [u8]) -> Result<&'a mut [u8], CodecError<P>> {
-        postcard::to_slice(frame, buf).map_err(CodecError::from)
+    fn encode<'a>(frame: &Frame, buf: &'a mut [u8]) -> Result<&'a mut [u8], LinkError<P::Error>> {
+        postcard::to_slice(frame, buf).map_err(LinkError::from)
     }
 
-    fn decode(raw: &[u8]) -> Result<Frame, CodecError<P>> {
-        postcard::from_bytes(raw).map_err(CodecError::from)
+    fn decode(raw: &[u8]) -> Result<Frame, LinkError<P::Error>> {
+        postcard::from_bytes(raw).map_err(LinkError::from)
     }
 }
 
-impl<P: PhyLayer + Debug> LinkLayer for DataLinkCodec<P> {
-    type Error = CodecError<P>;
+impl<P: PhyLayer> LinkLayer for LinkImpl<P> {
+    type Error = LinkError<P::Error>;
 
     async fn send_frame(&mut self, frame: Frame) -> Result<(), Self::Error> {
         let mut buf = [0u8; 256];
@@ -38,7 +34,7 @@ impl<P: PhyLayer + Debug> LinkLayer for DataLinkCodec<P> {
         self.phy
             .send_bytes(payload)
             .await
-            .map_err(CodecError::Physical)
+            .map_err(LinkError::Physical)
     }
 
     async fn recv_frame(&mut self, buf: &mut [u8]) -> Result<Frame, Self::Error> {
@@ -46,7 +42,7 @@ impl<P: PhyLayer + Debug> LinkLayer for DataLinkCodec<P> {
             .phy
             .recv_bytes(buf)
             .await
-            .map_err(CodecError::Physical)?;
+            .map_err(LinkError::Physical)?;
         Self::decode(payload)
     }
 }

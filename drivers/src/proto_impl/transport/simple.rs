@@ -1,16 +1,16 @@
 use core::fmt::Debug;
 use heapless::Vec;
 
-use crate::layer::link::{Frame, FrameHeader, FrameKind, LinkLayer};
-use crate::layer::transport::{MAX_TRANSPORT_CHUNK_PAYLOAD, Packet, TransportLayer};
+use sat_core::layer::link::{Frame, FrameHeader, FrameKind, LinkLayer};
+use sat_core::layer::transport::{MAX_TRANSPORT_CHUNK_PAYLOAD, Packet, TransportLayer};
 
-pub struct SimpleTransport<L: LinkLayer + Debug> {
+pub struct SimpleTransport<L: LinkLayer> {
     addr: u32,
     link: L,
     buf: [u8; MAX_TRANSPORT_CHUNK_PAYLOAD],
 }
 
-impl<L: LinkLayer + Debug> SimpleTransport<L> {
+impl<L: LinkLayer> SimpleTransport<L> {
     pub fn new(addr: u32, link: L) -> Self {
         Self {
             addr,
@@ -20,8 +20,8 @@ impl<L: LinkLayer + Debug> SimpleTransport<L> {
     }
 }
 
-impl<L: LinkLayer + Debug> TransportLayer for SimpleTransport<L> {
-    type Error = SimpleError<L>;
+impl<L: LinkLayer> TransportLayer for SimpleTransport<L> {
+    type Error = SimpleError<L::Error>;
 
     async fn send_message(&mut self, msg: Packet) -> Result<(), Self::Error> {
         let ser = postcard::to_slice(&msg, &mut self.buf).unwrap();
@@ -49,8 +49,8 @@ impl<L: LinkLayer + Debug> TransportLayer for SimpleTransport<L> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum SimpleError<L: LinkLayer + Debug> {
+#[derive(defmt::Format, Debug, PartialEq, Eq)]
+pub enum SimpleError<LE: Debug> {
     Error,
-    DataLink(L::Error),
+    DataLink(LE),
 }

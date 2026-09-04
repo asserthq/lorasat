@@ -1,7 +1,7 @@
 use core::fmt;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum FrpError {
+#[derive(defmt::Format, Debug, PartialEq)]
+pub enum TransportError<LE: Debug> {
     InvalidControlByte,
     BufferTooShort,
     InvalidSessionId,
@@ -9,9 +9,10 @@ pub enum FrpError {
     SessionNotInitialized,
     Decode,
     Encode,
+    Link(LE),
 }
 
-impl fmt::Display for FrpError {
+impl fmt::Display for TransportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidControlByte => f.write_str("invalid FRP control byte"),
