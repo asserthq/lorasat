@@ -1099,6 +1099,7 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async 0.7.0",
  "panic-probe",
+ "postcard",
  "sat-core",
  "sat-drivers",
 ]
