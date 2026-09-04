@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, defmt::Format)]
 pub struct Beacon {
     pub sat_addr: u32,
     pub interval_sec: u16,
