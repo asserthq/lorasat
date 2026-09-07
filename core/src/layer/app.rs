@@ -10,11 +10,12 @@ pub trait AppLayer {
     async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<Message, Self::Error>;
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, defmt::Format)]
 pub enum Message {
     BeaconMsg(Beacon),
     ClientDataMsg(ClientData),
 
     GndCommandMsg(GroundCommand),
     SatDataMsg(SatelliteData),
+    GroundCommandAns,
 }

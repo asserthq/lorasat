@@ -17,13 +17,13 @@ pub trait TransportLayer {
     async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<Packet, Self::Error>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, defmt::Format)]
 pub struct Packet {
     pub header: PacketHeader,
     pub payload: Vec<u8, MAX_TRANSPORT_MESSAGE_PAYLOAD>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, defmt::Format)]
 pub struct PacketHeader {
     pub dest_addr: u32,
     //pub kind: MessageKind,

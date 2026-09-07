@@ -14,6 +14,8 @@ use embedded_hal_bus::spi::ExclusiveDevice;
 use sandbox_lib as _;
 
 use sat_drivers::lora::Radio;
+use sat_drivers::proto_impl::link::LinkImpl;
+use sat_drivers::proto_impl::transport::SimpleTransport;
 use sat_drivers::sd::{SdCardLogger, StaticTimeSource};
 
 use logger::BitbangSpiDevice;
@@ -83,7 +85,8 @@ async fn main(_spawner: Spawner) {
         logger
     };
 
-    info!("satellite online, listening");
+    let link = LinkImpl::new(radio);
+    let transport = SimpleTransport::new(1, link);
 
-    task::sat_task(radio, logger).await;
+    task::sat_task(transport, logger).await;
 }

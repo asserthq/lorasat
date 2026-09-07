@@ -14,6 +14,8 @@ use sandbox_lib as _;
 use sandbox_lib::shell::Shell;
 
 use sat_drivers::lora::Radio;
+use sat_drivers::proto_impl::link::LinkImpl;
+use sat_drivers::proto_impl::transport::SimpleTransport;
 
 mod commands;
 mod task;
@@ -65,5 +67,8 @@ async fn main(_spawner: Spawner) {
         .await
         .unwrap();
 
-    task::gs_task(shell, radio).await;
+    let link = LinkImpl::new(radio);
+    let transport = SimpleTransport::new(0, link);
+
+    task::gs_task(shell, transport).await;
 }
