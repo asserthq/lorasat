@@ -1,14 +1,7 @@
 use defmt::{error, info};
 use embedded_io_async::{Read, Write};
-use heapless::Vec;
 use sandbox_lib::shell::Shell;
-use sat_core::{
-    layer::{
-        app::Message,
-        transport::{self, Packet, PacketHeader, TransportLayer},
-    },
-    message::GroundCommand,
-};
+use sat_core::layer::phy::PhyLayer;
 
 use crate::commands;
 
