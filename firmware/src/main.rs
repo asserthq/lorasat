@@ -17,6 +17,8 @@ use sat_drivers::proto_impl::transport::simple::SimpleTransport;
 
 use crate::sat::Satellite;
 
+mod adcs;
+mod comm;
 mod sat;
 
 const LORA_FREQ_IN_HZ: u32 = 433_000_000;

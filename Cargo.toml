@@ -2,6 +2,7 @@
 members = [
     "core",
     "drivers",
+    "subsystems",
     "firmware",
 
     "sandbox-mcu",

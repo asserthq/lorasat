@@ -1,22 +1,15 @@
 use core::fmt::Debug;
 
+/// Ошибки канального уровня.
+///
+/// Конкретная ошибка PHY в тип не попадает: верхним слоям нужен класс
+/// отказа (железо / формат), а не вариант железа — см. ReadExactError<E>
+/// в embedded-io как пример обратного выбора. Точную ошибку PHY имеет
+/// смысл логировать на границе слоёв (defmt-or-log), а не тащить в тип.
 #[derive(defmt::Format, Debug, PartialEq)]
-pub enum LinkError<PE: Debug> {
-    Encode,
-    Decode,
-    Physical(PE),
-}
-
-impl<PE: Debug> From<postcard::Error> for LinkError<PE> {
-    fn from(e: postcard::Error) -> Self {
-        match e {
-            postcard::Error::SerializeBufferFull
-            | postcard::Error::SerdeSerCustom
-            | postcard::Error::CollectStrError
-            | postcard::Error::WontImplement
-            | postcard::Error::NotYetImplemented => LinkError::Encode,
-
-            _ => LinkError::Decode,
-        }
-    }
+pub enum LinkError {
+    /// PHY вернул ошибку при приёме или передаче.
+    Phy,
+    /// Кадр с заголовком не влез в буфер PHY при отправке.
+    PayloadTooLarge,
 }

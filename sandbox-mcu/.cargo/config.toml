@@ -32,4 +32,4 @@ rb = "run --bin"
 rrb = "run --release --bin"
 
 [env]
-DEFMT_LOG = "info"
+DEFMT_LOG = "debug"

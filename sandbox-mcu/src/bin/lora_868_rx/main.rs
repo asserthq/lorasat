@@ -13,6 +13,7 @@ use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use sat_core::layer::phy::PhyLayer;
 use sat_drivers::lora::Radio1262;
+use sat_drivers::proto_impl::link::LinkImpl;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -57,6 +58,7 @@ async fn main(_spawner: Spawner) {
         .await
         .unwrap()
     };
+    let mut link = LinkImpl::new(radio);
 
     let mut rx_buf = [0u8; 255];
 

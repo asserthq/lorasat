@@ -6,14 +6,21 @@ version = "0.1.0"
 
 [[bin]]
 name = "sat"
+path = "src/bin/sat/main.rs"
 
-[[bin]]
-name = "client"
+[features]
+broken-bins = []
 
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
+sat_drivers = { package = "sat-drivers", path = "../drivers" }
+sat_subsystems = { package = "sat-subsystems", path = "../subsystems" }
+
 embassy-futures = "0.1.2"
-tokio = { version = "1", features = ["net", "time", "rt", "macros"] }
+embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
+tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util"] }
+log = "0.4"
+env_logger = "0.11"
 serde = { version = "1.0.229", default-features = false,  features = ["derive"] }
 postcard = { version = "1.1.3", default-features = false }
 heapless = { version = "0.9.3", features = ["serde"] }
