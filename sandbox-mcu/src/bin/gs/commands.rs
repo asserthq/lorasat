@@ -1,16 +1,16 @@
-use sat_core::message::GroundCommand;
+use sat_core::message::Command;
 
-pub fn parse(cmd: &[u8]) -> Option<GroundCommand> {
+pub fn parse(cmd: &[u8]) -> Option<Command> {
     if cmd == b"ping" {
-        Some(GroundCommand::Ping)
+        Some(Command::Ping)
     } else if cmd == b"telemetry" {
-        Some(GroundCommand::RequestSatTelemetry)
+        Some(Command::RequestSatTelemetry)
     } else if cmd == b"client" {
-        Some(GroundCommand::RequestClientData)
+        Some(Command::RequestClientData)
     } else if cmd.starts_with(b"beacon ") {
-        Some(GroundCommand::ChangeBeaconInterval(parse_u32(&cmd[7..])?))
+        Some(Command::ChangeBeaconInterval(parse_u32(&cmd[7..])?))
     } else if cmd.starts_with(b"time ") {
-        Some(GroundCommand::SetTime(parse_u64(&cmd[5..])?))
+        Some(Command::SetTime(parse_u64(&cmd[5..])?))
     } else {
         None
     }

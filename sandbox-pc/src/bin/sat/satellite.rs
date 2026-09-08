@@ -7,7 +7,7 @@ use sat_core::layer::transport::{
     MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, Packet, PacketHeader,
     TransportLayer,
 };
-use sat_core::message::{Beacon, ClientData, GroundCommand, SatelliteData};
+use sat_core::message::{Beacon, ClientData, Command, SatelliteData};
 
 pub struct Satellite<T: TransportLayer> {
     transport_gs: T,
@@ -100,10 +100,10 @@ impl<T: TransportLayer> Satellite<T> {
         app_msg
     }
 
-    async fn handle_command(&mut self, cmd: GroundCommand) {
+    async fn handle_command(&mut self, cmd: Command) {
         println!("{:?}", cmd);
         match cmd {
-            GroundCommand::RequestClientData => {
+            Command::RequestClientData => {
                 self.send_big_message().await;
             }
             _ => {}

@@ -1,4 +1,4 @@
-use crate::message::{Beacon, ClientData, GroundCommand, SatelliteData};
+use crate::message::{Beacon, ClientData, Command, SatelliteData};
 use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub enum Message {
     BeaconMsg(Beacon),
     ClientDataMsg(ClientData),
 
-    GndCommandMsg(GroundCommand),
+    GndCommandMsg(Command),
     SatDataMsg(SatelliteData),
     GroundCommandAns,
 }

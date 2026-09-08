@@ -5,7 +5,7 @@ use sat_core::layer::transport::{
     MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, Packet, PacketHeader,
     TransportLayer,
 };
-use sat_core::message::{Beacon, GroundCommand};
+use sat_core::message::{Beacon, Command};
 
 use heapless::Vec;
 use tokio::select;
@@ -43,7 +43,7 @@ impl<T: TransportLayer> GroundStation<T> {
     }
 
     async fn request_data(&mut self) {
-        let cmd = GroundCommand::RequestClientData;
+        let cmd = Command::RequestClientData;
         let msg = Message::GndCommandMsg(cmd);
 
         let mut buf = [0u8; MAX_TRANSPORT_CHUNK_PAYLOAD];

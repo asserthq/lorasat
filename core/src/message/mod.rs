@@ -5,5 +5,5 @@ pub mod satellite_data;
 
 pub use beacon::Beacon;
 pub use client_data::ClientData;
-pub use ground_command::GroundCommand;
+pub use ground_command::Command;
 pub use satellite_data::SatelliteData;
