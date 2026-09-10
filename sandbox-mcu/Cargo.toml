@@ -24,6 +24,12 @@ name = "gs"
 [[bin]]
 name = "client"
 
+[[bin]]
+name = "lora_868_tx"
+
+[[bin]]
+name = "lora_868_rx"
+
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }
