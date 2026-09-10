@@ -1,81 +1,114 @@
+//! This example runs on the STM32 LoRa Discovery board, which has a builtin Semtech Sx1276 radio.
+//! It demonstrates LORA P2P send functionality.
 #![no_std]
 #![no_main]
 
-use defmt::{error, info};
+use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::exti::{self, ExtiInput};
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::time::khz;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
-use embassy_time::{Delay, Duration, Timer};
+use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
-
-use sat_core::layer::phy::PhyLayer;
-use sat_drivers::lora::Radio1262;
-
-use sandbox_lib as _;
-
-const LORA_FREQ_IN_HZ: u32 = 868_100_000;
+use lora_phy::LoRa;
+use lora_phy::iv::GenericSx126xInterfaceVariant;
+use lora_phy::sx126x::{Sx126x, Sx1262, TcxoCtrlVoltage};
+use lora_phy::{mod_params::*, sx126x};
+use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
-    DMA1_STREAM4 => dma::InterruptHandler<peripherals::DMA1_CH4>;
-    DMA1_STREAM3 => dma::InterruptHandler<peripherals::DMA1_CH3>;
-    EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>;
-    EXTI0 => exti::InterruptHandler<interrupt::typelevel::EXTI0>;
+    DMA2_STREAM2 => dma::InterruptHandler<peripherals::DMA2_CH2>; // SPI RX
+    DMA2_STREAM3 => dma::InterruptHandler<peripherals::DMA2_CH3>; // SPI TX
+    EXTI4 => exti::InterruptHandler<interrupt::typelevel::EXTI4>; // DIO1
+    EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>;    // BUSY
 });
+
+const LORA_FREQUENCY_IN_HZ: u32 = 868_000_000; // warning: set this appropriately for the region
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
-    let p = embassy_stm32::init(Default::default());
+    let mut config = embassy_stm32::Config::default();
+    config.rcc.hsi = true;
+    config.rcc.sys = embassy_stm32::rcc::Sysclk::HSI;
+    let p = embassy_stm32::init(config);
 
-    info!("sx1262 test: E22-900M30S init");
-
-    let nss = Output::new(p.PB12, Level::High, Speed::Low);
+    let nss = Output::new(p.PA4, Level::High, Speed::Low);
+    let reset = Output::new(p.PB6, Level::High, Speed::Low);
+    let irq_dio1 = ExtiInput::new(p.PB4, p.EXTI4, Pull::Up, Irqs);
+    let irq_busy = ExtiInput::new(p.PB5, p.EXTI5, Pull::Up, Irqs);
 
     let mut spi_config = spi::Config::default();
     spi_config.frequency = khz(200);
     let spi = spi::Spi::new(
-        p.SPI2, p.PB13, p.PB15, p.PB14, p.DMA1_CH4, p.DMA1_CH3, Irqs, spi_config,
+        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA2_CH3, p.DMA2_CH2, Irqs, spi_config,
     );
-    let spi_device = ExclusiveDevice::new(spi, nss, Delay).unwrap();
+    let spi = ExclusiveDevice::new(spi, nss, Delay).unwrap();
 
-    let reset = Output::new(p.PA8, Level::High, Speed::Low);
-    let dio1 = ExtiInput::new(p.PA9, p.EXTI9, Pull::Down, Irqs);
-    let busy = ExtiInput::new(p.PB0, p.EXTI0, Pull::Down, Irqs);
+    let iv = GenericSx126xInterfaceVariant::new(reset, irq_dio1, irq_busy, None, None).unwrap();
+    let config = sx126x::Config {
+        chip: Sx1262,
+        tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V8),
+        use_dcdc: true,
+        rx_boost: true,
+    };
+    let mut lora = LoRa::new(Sx126x::new(spi, iv, config), false, Delay)
+        .await
+        .unwrap();
 
-    let rxen = Output::new(p.PB1, Level::Low, Speed::Low);
-    let txen = Output::new(p.PA4, Level::Low, Speed::Low);
+    let mdltn_params = {
+        match lora.create_modulation_params(
+            SpreadingFactor::_10,
+            Bandwidth::_250KHz,
+            CodingRate::_4_8,
+            LORA_FREQUENCY_IN_HZ,
+        ) {
+            Ok(mp) => mp,
+            Err(err) => {
+                info!("Radio error = {}", err);
+                return;
+            }
+        }
+    };
 
-    let mut radio = Radio1262::new(
-        spi_device,
-        reset,
-        dio1,
-        busy,
-        Some(rxen),
-        Some(txen),
-        Delay,
-        LORA_FREQ_IN_HZ,
-    )
-    .await
-    .unwrap();
+    let mut tx_pkt_params = {
+        match lora.create_tx_packet_params(8, false, true, false, &mdltn_params) {
+            Ok(pp) => pp,
+            Err(err) => {
+                info!("Radio error = {}", err);
+                return;
+            }
+        }
+    };
 
-    info!("sx1262 init ok, freq {} Hz", LORA_FREQ_IN_HZ);
-
-    let mut counter: u32 = 0;
+    let buffer = [0x01u8, 0x02u8, 0x03u8];
 
     loop {
-        let mut payload = [0u8; 8];
-        payload[..4].copy_from_slice(b"PING");
-        payload[4..8].copy_from_slice(&counter.to_le_bytes());
+        match lora
+            .prepare_for_tx(&mdltn_params, &mut tx_pkt_params, 20, &buffer)
+            .await
+        {
+            Ok(()) => {}
+            Err(err) => {
+                info!("Radio error = {}", err);
+                return;
+            }
+        };
 
-        info!("tx #{} payload {=[u8]}", counter, &payload[..]);
-
-        match radio.send_bytes(&payload).await {
-            Ok(()) => info!("tx done"),
-            Err(e) => error!("tx failed: {}", e),
-        }
-
-        counter = counter.wrapping_add(1);
-        Timer::after(Duration::from_secs(2)).await;
+        match lora.tx().await {
+            Ok(()) => {
+                info!("TX DONE");
+            }
+            Err(err) => {
+                info!("Radio error = {}", err);
+                return;
+            }
+        };
+        Timer::after_secs(2).await;
     }
+
+    // match lora.sleep(false).await {
+    //     Ok(()) => info!("Sleep successful"),
+    //     Err(err) => info!("Sleep unsuccessful = {}", err),
+    // }
 }

@@ -1102,6 +1102,7 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async 0.7.0",
  "heapless 0.9.3",
+ "lora-phy",
  "panic-probe",
  "postcard",
  "sat-core",
