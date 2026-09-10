@@ -163,7 +163,7 @@ where
     ) -> Result<Self, Error> {
         let config = Sx126xConfig {
             chip: Sx1262,
-            tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V8), // E22-900M30S: TCXO на DIO3, 1.8 В
+            tcxo_ctrl: Some(TcxoCtrlVoltage::Ctrl1V8),
             use_dcdc: true,
             rx_boost: true,
         };

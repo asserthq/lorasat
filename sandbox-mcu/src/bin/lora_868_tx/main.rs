@@ -30,7 +30,6 @@ async fn main(_spawner: Spawner) {
 
     info!("sx1262 test: E22-900M30S init");
 
-    // --- SPI + chip select ---
     let nss = Output::new(p.PB12, Level::High, Speed::Low);
 
     let mut spi_config = spi::Config::default();
