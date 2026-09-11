@@ -2,7 +2,6 @@
 pub enum Error {
     CreateInterfaceVariant,
     CreateLora,
-    InitLora,
     CreateModulationParams,
     CreateTxPacketParams,
     PrepareForTx,
