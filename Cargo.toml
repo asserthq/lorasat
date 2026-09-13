@@ -6,6 +6,7 @@ members = [
 
     "sandbox-mcu",
     "sandbox-pc",
+    "asp868",
     # "sim"
 ]
 

@@ -39,6 +39,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "asp868"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-stm32",
+ "embassy-time",
+ "embedded-hal-bus",
+ "heapless 0.9.3",
+ "panic-probe",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+]
+
+[[package]]
 name = "atomic-polyfill"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

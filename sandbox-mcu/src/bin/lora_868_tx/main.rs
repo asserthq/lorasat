@@ -11,8 +11,13 @@ use embassy_stm32::time::khz;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
 use embassy_time::{Delay, Timer};
 use embedded_hal_bus::spi::ExclusiveDevice;
-use sat_core::layer::phy::PhyLayer;
+use heapless::Vec;
+use sat_core::layer::app::Message;
+use sat_core::layer::transport::{self, Packet, PacketHeader, TransportLayer};
+use sat_core::message::Beacon;
 use sat_drivers::lora::Radio1262;
+use sat_drivers::proto_impl::link::LinkImpl;
+use sat_drivers::proto_impl::transport::SimpleTransport;
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -31,7 +36,7 @@ async fn main(_spawner: Spawner) {
     config.rcc.sys = embassy_stm32::rcc::Sysclk::HSI;
     let p = embassy_stm32::init(config);
 
-    let mut radio = {
+    let radio = {
         let nss = Output::new(p.PA4, Level::High, Speed::Low);
         let reset = Output::new(p.PB6, Level::High, Speed::Low);
         let irq_dio1 = ExtiInput::new(p.PB4, p.EXTI4, Pull::Up, Irqs);
@@ -58,10 +63,26 @@ async fn main(_spawner: Spawner) {
         .unwrap()
     };
 
-    let payload = [0x01u8, 0x02u8, 0x03u8];
+    let link = LinkImpl::new(radio);
+    let mut transport = SimpleTransport::new(1, link);
+
+    let beacon = Message::BeaconMsg(Beacon {
+        sat_addr: 1,
+        interval_sec: 10,
+        timestamp: 777,
+    });
 
     loop {
-        radio.send_bytes(&payload).await.unwrap();
+        let mut buf = [0u8; transport::MAX_TRANSPORT_MESSAGE_PAYLOAD];
+        let ser = postcard::to_slice(&beacon, &mut buf).unwrap();
+        let payload =
+            Vec::<u8, { transport::MAX_TRANSPORT_MESSAGE_PAYLOAD }>::from_slice(ser).unwrap();
+        let pkt = Packet {
+            header: PacketHeader { dest_addr: 10 },
+            payload,
+        };
+
+        transport.send_message(pkt).await.unwrap();
         info!("TX DONE");
         Timer::after_secs(2).await;
     }
