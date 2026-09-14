@@ -42,10 +42,28 @@ impl<L: LinkLayer> TransportLayer for SimpleTransport<L> {
     }
 
     async fn recv_message<'a>(&'a mut self, buf: &'a mut [u8]) -> Result<Packet, Self::Error> {
+        let (msg, _src) = self.recv_message_inner(buf).await?;
+        Ok(msg)
+    }
+}
+
+impl<L: LinkLayer> SimpleTransport<L> {
+    pub async fn recv_message_with_src<'a>(
+        &'a mut self,
+        buf: &'a mut [u8],
+    ) -> Result<(Packet, u32), SimpleError<L::Error>> {
+        self.recv_message_inner(buf).await
+    }
+
+    async fn recv_message_inner<'a>(
+        &'a mut self,
+        buf: &'a mut [u8],
+    ) -> Result<(Packet, u32), SimpleError<L::Error>> {
         let frame = self.link.recv_frame(buf).await.unwrap();
+        let src_addr = frame.header.src_addr;
         let datalink_payload = frame.payload;
         let msg = postcard::from_bytes(&datalink_payload).unwrap();
-        Ok(msg)
+        Ok((msg, src_addr))
     }
 }
 

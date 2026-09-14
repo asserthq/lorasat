@@ -1,23 +1,28 @@
 //! This example runs on the STM32 LoRa Discovery board, which has a builtin Semtech Sx1276 radio.
-//! It demonstrates LORA P2P send functionality.
+//! It demonstrates the satellite side of the protocol: it periodically sends a
+//! beacon and, in between beacons, listens for ASP/client telemetry.
+//!
+//! Received telemetry is logged in order as "from whom / when / what". A real
+//! build would write these records to an SD card instead of the console.
 #![no_std]
 #![no_main]
 
-use defmt::*;
+mod config;
+mod task;
+
 use embassy_executor::Spawner;
 use embassy_stm32::exti::{self, ExtiInput};
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::time::khz;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
-use embassy_time::{Delay, Timer};
+use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
-use heapless::Vec;
-use sat_core::layer::app::Message;
-use sat_core::layer::transport::{self, Packet, PacketHeader, TransportLayer};
+
 use sat_core::message::Beacon;
 use sat_drivers::lora::Radio1262;
 use sat_drivers::proto_impl::link::LinkImpl;
 use sat_drivers::proto_impl::transport::SimpleTransport;
+
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -26,8 +31,6 @@ bind_interrupts!(struct Irqs {
     EXTI4 => exti::InterruptHandler<interrupt::typelevel::EXTI4>; // DIO1
     EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>;    // BUSY
 });
-
-const LORA_FREQUENCY_IN_HZ: u32 = 868_000_000;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -57,33 +60,20 @@ async fn main(_spawner: Spawner) {
             None,
             None,
             Delay,
-            LORA_FREQUENCY_IN_HZ,
+            config::LORA_FREQUENCY_IN_HZ,
         )
         .await
         .unwrap()
     };
 
     let link = LinkImpl::new(radio);
-    let mut transport = SimpleTransport::new(1, link);
+    let transport = SimpleTransport::new(config::SAT_ADDR, link);
 
-    let beacon = Message::BeaconMsg(Beacon {
-        sat_addr: 1,
-        interval_sec: 10,
+    let beacon = Beacon {
+        sat_addr: config::SAT_ADDR,
+        interval_sec: config::BEACON_INTERVAL_SEC,
         timestamp: 777,
-    });
+    };
 
-    loop {
-        let mut buf = [0u8; transport::MAX_TRANSPORT_MESSAGE_PAYLOAD];
-        let ser = postcard::to_slice(&beacon, &mut buf).unwrap();
-        let payload =
-            Vec::<u8, { transport::MAX_TRANSPORT_MESSAGE_PAYLOAD }>::from_slice(ser).unwrap();
-        let pkt = Packet {
-            header: PacketHeader { dest_addr: 10 },
-            payload,
-        };
-
-        transport.send_message(pkt).await.unwrap();
-        info!("TX DONE");
-        Timer::after_secs(2).await;
-    }
+    task::sat_task(transport, beacon).await;
 }
