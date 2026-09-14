@@ -1,9 +1,3 @@
-//! This example runs on the STM32 LoRa Discovery board, which has a builtin Semtech Sx1276 radio.
-//! It demonstrates the satellite side of the protocol: it periodically sends a
-//! beacon and, in between beacons, listens for ASP/client telemetry.
-//!
-//! Received telemetry is logged in order as "from whom / when / what". A real
-//! build would write these records to an SD card instead of the console.
 #![no_std]
 #![no_main]
 
