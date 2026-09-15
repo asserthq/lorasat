@@ -2,11 +2,14 @@
 #![no_main]
 
 mod config;
+mod logger;
 mod task;
+
+use defmt::{error, info};
 
 use embassy_executor::Spawner;
 use embassy_stm32::exti::{self, ExtiInput};
-use embassy_stm32::gpio::{Level, Output, Pull, Speed};
+use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
 use embassy_stm32::time::khz;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
 use embassy_time::Delay;
@@ -16,6 +19,9 @@ use sat_core::message::Beacon;
 use sat_drivers::lora::Radio1262;
 use sat_drivers::proto_impl::link::LinkImpl;
 use sat_drivers::proto_impl::transport::SimpleTransport;
+use sat_drivers::sd::{SdCardLogger, StaticTimeSource};
+
+use logger::BitbangSpiDevice;
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -63,11 +69,37 @@ async fn main(_spawner: Spawner) {
     let link = LinkImpl::new(radio);
     let transport = SimpleTransport::new(config::SAT_ADDR, link);
 
+    let logger = {
+        let sck = Output::new(p.PB12, Level::Low, Speed::High);
+        let mosi = Output::new(p.PB13, Level::Low, Speed::High);
+        let miso = Input::new(p.PB14, Pull::Up);
+        let nss = Output::new(p.PB15, Level::High, Speed::High);
+
+        let spi = BitbangSpiDevice::new(sck, mosi, miso, Delay);
+        let mut logger = SdCardLogger::new(spi, nss, Delay, StaticTimeSource::default());
+
+        match logger.enable_rotation(1_000_000) {
+            Ok(()) => info!("sd: rotation on, 1 MiB/file"),
+            Err(e) => error!("sd rotation failed: {}", e),
+        }
+        logger.set_max_total_size(400_000_000);
+
+        match logger.init() {
+            Ok(()) => info!(
+                "sd: card size {} bytes",
+                logger.card_size_bytes().unwrap_or(0)
+            ),
+            Err(e) => error!("sd init failed: {}", e),
+        }
+
+        logger
+    };
+
     let beacon = Beacon {
         sat_addr: config::SAT_ADDR,
         interval_sec: config::BEACON_INTERVAL_SEC,
         timestamp: 777,
     };
 
-    task::sat_task(transport, beacon).await;
+    task::sat_task(transport, beacon, logger).await;
 }
