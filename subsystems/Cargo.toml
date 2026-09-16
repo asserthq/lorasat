@@ -11,6 +11,7 @@ sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }
 
 defmt = { version = "1.0.1", optional = true }
+log = { version = "0.4", optional = true }
 defmt-or-log = "0.2.3"
 embassy-time = "0.5.1"
 embassy-futures = { version = "0.1.2", features = ["defmt"] }
@@ -24,8 +25,15 @@ serde = { version = "1.0.229", default-features = false,  features = ["derive"] 
 postcard = { version = "1.1.3", default-features = false }
 heapless = { version = "0.9.3", features = ["serde"] }
 embedded-io-async = "0.7"
-#sx126x = "0.3.0"
 
+# Дефолт — log-фасад: без установленного логгера макросы молчат.
+# defmt — логи через defmt (target): default-features = false, features = ["defmt"].
+# defmt + stdout вместе нельзя: defmt-or-log даст дубли макросов (E0119).
+#
+# Имена фич "log" и "defmt" обязательны: макросы defmt-or-log проверяют
+# cfg(feature = "log") / cfg(feature = "defmt") в контексте вызывающего крейта.
+# Обе фичи также подключают соответствующий крейт через dep:.
 [features]
-default = ["defmt-or-log/log"]
+default = ["log"]
 defmt = ["dep:defmt", "defmt-or-log/defmt"]
+log = ["dep:log", "defmt-or-log/log"]

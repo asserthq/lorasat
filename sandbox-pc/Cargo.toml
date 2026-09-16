@@ -8,8 +8,8 @@ version = "0.1.0"
 name = "sat"
 path = "src/bin/sat/main.rs"
 
-[features]
-broken-bins = []
+# client/asat/gs перенесены в examples/ — сломаны от старой архитектуры,
+# собираются только явно: cargo build --example client
 
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
