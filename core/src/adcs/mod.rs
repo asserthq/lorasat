@@ -4,6 +4,7 @@ pub mod command;
 pub mod mag;
 
 use core::time::Duration;
+use nalgebra::Vector3;
 
 use crate::time::Delay;
 
@@ -11,7 +12,6 @@ use self::bdot::BdotAlgorithm;
 use self::coils::CoilLevelsVec;
 use self::coils::Coils;
 use self::command::AdcsCommand;
-use self::mag::BVec;
 use self::mag::Mag;
 
 #[derive(Default, PartialEq)]
@@ -24,7 +24,7 @@ pub enum AdcsMode {
 #[derive(Default)]
 pub struct AdcsState {
     mode: AdcsMode,
-    outer_b: BVec,
+    outer_b: Vector3<f32>,
     coil_levels: CoilLevelsVec,
 }
 
