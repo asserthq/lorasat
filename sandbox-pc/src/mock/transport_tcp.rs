@@ -2,7 +2,7 @@ use std::io;
 use std::net::{Ipv4Addr, SocketAddr};
 
 use sat_core::comm::address::Address;
-use sat_core::comm::transport::{Event, Session, TransportLayer};
+use sat_core::comm::transport::{Session, TransportEvent,tSession, TransportLayer};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 
@@ -53,15 +53,15 @@ impl TransportLayer for TransportMockTCP {
         Ok(TcpSession { stream })
     }
 
-    async fn next<'a>(&mut self, buf: &'a mut [u8]) -> io::Result<Event<'a, TcpSession>> {
+    async fn next<'a>(&mut self, buf: &'a mut [u8]) -> io::Result<TransportEvent<'a, TcpSession>> {
         tokio::select! {
             accepted = self.listener.accept() => {
                 let (stream, _) = accepted?;
-                Ok(Event::Session(TcpSession { stream }))
+                Ok(TransportEvent::Session(TcpSession { stream }))
             }
             recv = self.udp.recv_from(buf) => {
                 let (n, from) = recv?;
-                Ok(Event::Datagram { from: address_of(from), data: &buf[..n] })
+                Ok(TransportEvent::Datagram { from: address_of(from), data: &buf[..n] })
             }
         }
     }
@@ -73,7 +73,7 @@ pub struct TcpSession {
     stream: TcpStream,
 }
 
-impl Session for TcpSession {
+impl TransportSession for TcpSession {
     type Error = io::Error;
 
     async fn send(&mut self, data: &[u8]) -> io::Result<()> {
@@ -115,11 +115,11 @@ mod tests {
 
         let mut buf = [0u8; 256];
         match gs.next(&mut buf).await.unwrap() {
-            Event::Datagram { from, data } => {
+            TransportEvent::Datagram { from, data } => {
                 assert_eq!(from, Address(2));
                 assert_eq!(data, b"ping");
             }
-            Event::Session(_) => panic!("expected datagram"),
+            TransportEvent::Session(_) => panic!("expected datagram"),
         }
     }
 
@@ -132,7 +132,7 @@ mod tests {
             tokio::join!(client.connect(Address(10)), async {
                 let mut ignore = [0u8; 1];
                 match server.next(&mut ignore).await {
-                    Ok(Event::Session(s)) => s,
+                    Ok(TransportEvent::Session(s)) => s,
                     _ => panic!("expected session"),
                 }
             });
