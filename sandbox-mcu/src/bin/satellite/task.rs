@@ -5,7 +5,7 @@ use heapless::Vec;
 use postcard::from_bytes;
 use sat_core::layer::app::Message;
 use sat_core::layer::transport::{self, Packet, PacketHeader, TransportLayer};
-use sat_core::message::{Beacon, ClientData, GroundCommand};
+use sat_core::message::{Beacon, ClientData, Command};
 use sat_core::storage::Logger;
 
 async fn recv_msg<T: TransportLayer>(transport: &mut T) -> Message {
@@ -30,7 +30,7 @@ async fn send_msg<T: TransportLayer>(msg: Message, transport: &mut T) {
     transport.send_message(pkt).await.unwrap();
 }
 
-async fn on_gnd_command<T: TransportLayer>(cmd: GroundCommand, transport: &mut T) {
+async fn on_gnd_command<T: TransportLayer>(cmd: Command, transport: &mut T) {
     info!("applying ground command: {:?}", cmd);
     send_msg(Message::GroundCommandAns, transport).await;
 }

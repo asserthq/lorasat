@@ -2,10 +2,12 @@
 members = [
     "core",
     "drivers",
+    "subsystems",
     "firmware",
 
     "sandbox-mcu",
     "sandbox-pc",
+    "asp868",
     # "sim"
 ]
 

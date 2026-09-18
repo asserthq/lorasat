@@ -1,4 +1,4 @@
-use super::AdcsMode;
+use super::mode::AdcsMode;
 
 pub enum AdcsCommand {
     SetMode(AdcsMode),

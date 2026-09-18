@@ -2,6 +2,7 @@ use defmt::*;
 use embassy_futures::select::{Either, select};
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
+use sat_core::comm::CommSystem;
 use sat_core::layer::app::Message;
 use sat_core::layer::transport::{
     MAX_TRANSPORT_CHUNK_PAYLOAD, MAX_TRANSPORT_MESSAGE_PAYLOAD, Packet, PacketHeader,
@@ -9,33 +10,21 @@ use sat_core::layer::transport::{
 };
 use sat_core::message::Beacon;
 
-pub struct Satellite<T: TransportLayer> {
-    comm_gs: Option<T>,
-    comm_client: T,
+pub struct Satellite<COMM: CommSystem> {
+    comm: COMM,
 }
 
-impl<T: TransportLayer> Satellite<T> {
-    pub fn new(comm_gs: Option<T>, comm_client: T) -> Self {
-        Self {
-            comm_gs,
-            comm_client,
-        }
+impl<COMM: CommSystem> Satellite<COMM> {
+    pub fn new(comm: COMM) -> Self {
+        Self { comm }
     }
 
-    pub async fn run(mut self) {
+    pub async fn run(&mut self) {
         let mut beacon_ticker = Ticker::every(Duration::from_secs(10));
-        let beacon = Beacon {
-            sat_addr: 1,
-            interval_sec: 10,
-            timestamp: 777,
-        };
 
         info!("sat online, listening");
 
         loop {
-            //let rx_gs = Self::recv_msg(&mut self.comm_gs);
-            let rx_client = Self::recv_msg(&mut self.comm_client);
-
             match select(rx_client, beacon_ticker.next()).await {
                 Either::First(_msg) => {
                     info!("rx msg from client");

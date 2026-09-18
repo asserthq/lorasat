@@ -1,5 +1,6 @@
+use defmt::debug;
 use embedded_hal::digital::OutputPin;
-use sat_core::layer::phy::PhyLayer;
+use sat_core::comm::phy::PhyLayer;
 
 use lora_phy::{
     DelayNs, LoRa,
@@ -115,7 +116,7 @@ where
         Ok(())
     }
 
-    async fn recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+    async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         self.lora
             .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
             .await
@@ -126,7 +127,7 @@ where
             .rx(&self.rx_pkt_params, buf)
             .await
             .map_err(|_| Error::Rx)?;
-        Ok(&mut buf[..(len as usize)])
+        Ok(len as usize)
     }
 }
 
@@ -181,9 +182,9 @@ where
 
         let mod_params = lora
             .create_modulation_params(
-                SpreadingFactor::_10,
-                Bandwidth::_250KHz,
-                CodingRate::_4_8,
+                SpreadingFactor::_12,
+                Bandwidth::_125KHz,
+                CodingRate::_4_5,
                 freq_hz,
             )
             .map_err(|_| Error::CreateModulationParams)?;
@@ -223,10 +224,11 @@ where
             .map_err(|_| Error::PrepareForTx)?;
 
         self.lora.tx().await.map_err(|_| Error::Tx)?;
+        debug!("radio tx bytes: {:?}", payload);
         Ok(())
     }
 
-    async fn recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+    async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         self.lora
             .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
             .await
@@ -238,6 +240,6 @@ where
             .await
             .map_err(|_| Error::Rx)?;
 
-        Ok(&mut buf[..(len as usize)])
+        Ok(len as usize)
     }
 }

@@ -3,7 +3,7 @@ pub mod error;
 pub use error::Error;
 
 use embedded_io_async::{Read, Write};
-use sat_core::layer::phy::PhyLayer;
+use sat_core::comm::phy::PhyLayer;
 
 pub struct Uart<T> {
     inner: T,
@@ -35,7 +35,7 @@ where
             .map_err(|_| Error::Write)
     }
 
-    async fn recv_bytes<'a>(&mut self, buf: &'a mut [u8]) -> Result<&'a mut [u8], Self::Error> {
+    async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let mut n = 0usize;
 
         loop {
@@ -53,7 +53,7 @@ where
             n += 1;
 
             if byte[0] == 0 {
-                return Ok(&mut buf[..n]);
+                return Ok(n);
             }
         }
     }
