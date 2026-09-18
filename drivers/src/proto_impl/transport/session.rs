@@ -1,4 +1,4 @@
-use sat_core::comm::transport::Session;
+use sat_core::comm::transport::TransportSession;
 
 use crate::proto_impl::transport::error::TransportError;
 
@@ -10,7 +10,7 @@ impl SessionImpl {
     }
 }
 
-impl Session for SessionImpl {
+impl TransportSession for SessionImpl {
     type Error = TransportError;
 
     async fn send(&mut self, _data: &[u8]) -> Result<(), Self::Error> {

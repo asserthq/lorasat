@@ -1,6 +1,6 @@
 use sat_core::comm::address::Address;
 use sat_core::comm::link::LinkLayer;
-use sat_core::comm::transport::{Event, TransportLayer};
+use sat_core::comm::transport::{TransportEvent, TransportLayer};
 
 use crate::proto_impl::transport::error::TransportError;
 use crate::proto_impl::transport::session::SessionImpl;
@@ -33,7 +33,7 @@ impl<L: LinkLayer> TransportLayer for TransportImpl<L> {
     async fn next<'a>(
         &mut self,
         _buf: &'a mut [u8],
-    ) -> Result<Event<'a, Self::Session>, Self::Error> {
+    ) -> Result<TransportEvent<'a, Self::Session>, Self::Error> {
         todo!()
     }
 }
