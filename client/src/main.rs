@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-mod app;
+mod device;
 mod identity;
 mod led;
-mod link;
+mod tm;
 
 use defmt::info;
 use embassy_executor::Spawner;
@@ -15,9 +15,11 @@ use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
 use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
 
+use sat_core::comm::Address;
 use sat_drivers::lora::Radio1262;
 use sat_drivers::proto_impl::link::LinkImpl;
-use sat_drivers::proto_impl::transport::SimpleTransport;
+
+use crate::device::Device;
 
 use {defmt_rtt as _, panic_probe as _};
 
@@ -58,10 +60,10 @@ async fn main(spawner: Spawner) {
         .unwrap();
     info!("LoRa init OK");
 
-    let link = LinkImpl::new(radio);
     let node_addr = identity::chip_uid();
+    let link = LinkImpl::new(Address(node_addr), radio);
     info!("node addr = 0x{:08x}", node_addr);
-    let transport = SimpleTransport::new(node_addr, link);
 
-    app::run(transport, node_addr).await;
+    let mut node = Device::new(link);
+    node.run().await;
 }

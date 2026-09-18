@@ -105,6 +105,7 @@ dependencies = [
  "postcard",
  "sat-core",
  "sat-drivers",
+ "serde",
 ]
 
 [[package]]
