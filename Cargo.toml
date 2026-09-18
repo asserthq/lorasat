@@ -5,10 +5,9 @@ members = [
     "subsystems",
     "firmware",
 
+    "client",
     "sandbox-mcu",
     "sandbox-pc",
-    "asp868",
-    # "sim"
 ]
 
 resolver = "3"
