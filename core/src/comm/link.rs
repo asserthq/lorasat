@@ -10,4 +10,6 @@ pub trait LinkLayer {
         &mut self,
         buf: &'a mut [u8],
     ) -> Result<(Address, &'a [u8]), Self::Error>;
+
+    fn addr() -> Address;
 }
