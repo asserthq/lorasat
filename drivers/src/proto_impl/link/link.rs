@@ -60,6 +60,10 @@ impl<P: PhyLayer> LinkLayer for LinkImpl<P> {
         let frame: Frame = postcard::from_bytes(&buf[..n]).expect("frame decoded in loop above");
         Ok((Address(src), frame.payload))
     }
+
+    fn addr(&self) -> Address {
+        self.addr
+    }
 }
 
 #[cfg(test)]
