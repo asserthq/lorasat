@@ -11,5 +11,5 @@ pub trait LinkLayer {
         buf: &'a mut [u8],
     ) -> Result<(Address, &'a [u8]), Self::Error>;
 
-    fn addr() -> Address;
+    fn addr(&self) -> Address;
 }
