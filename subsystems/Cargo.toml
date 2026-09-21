@@ -10,6 +10,7 @@ version = "0.1.0"
 sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }
 
+nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4", optional = true }
 defmt-or-log = "0.2.3"

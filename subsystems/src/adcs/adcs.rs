@@ -9,7 +9,7 @@ use sat_core::adcs::{AdcsCommand, AdcsMode, BdotAlgorithm, Coils, Mag};
 pub struct AdcsState {
     mode: AdcsMode,
     outer_b: Vector3<f32>,
-    coil_levels: CoilLevelsVec,
+    coil_levels: Vector3<f32>,
 }
 
 pub struct AdcSystem<M: Mag, A: Coils, D: Delay> {

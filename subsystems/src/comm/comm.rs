@@ -1,9 +1,10 @@
 use defmt_or_log::*;
 use embassy_futures::select::{Either, select};
 use embassy_time::{Duration, Instant, Ticker};
-use sat_core::comm::address::{Address, BROADCAST_ADDRESS};
-use sat_core::comm::transport::{Session, TransportEventrtSession};
-use sat_core::{comm::transport::TransportLayer, entity::Beacon};
+use sat_core::comm::{
+    Address, TransportEvent, TransportLayer, TransportSession, address::BROADCAST_ADDRESS,
+};
+use sat_core::entity::Beacon;
 
 use crate::comm::CommConfig;
 
@@ -19,22 +20,19 @@ impl<T: TransportLayer> CommSystem<T> {
 
     pub async fn run(&mut self) {
         info!("comm system running");
-        // let mut beacon_ticker =
-        //     Ticker::every(Duration::from_secs(self.config.beacon_interval_sec as u64));
-        // // Локальный, не поле struct: Event держит заём buf, иначе он
-        // // конфликтует с &mut self в обработчиках (E0499).
-        // let mut buf = [0u8; 255];
+        let mut beacon_ticker =
+            Ticker::every(Duration::from_secs(self.config.beacon_interval_sec as u64));
 
-        // info!("comm system running");
+        let mut buf = [0u8; 255];
 
-        // loop {
-        //     let accept_gs = self.transport.next(&mut buf);
+        loop {
+            let accept_gs = self.transport.next(&mut buf);
 
-        //     match select(accept_gs, beacon_ticker.next()).await {
-        //         Either::First(e) => self.handle_gs_event(e.unwrap()).await,
-        //         Either::Second(_) => self.send_beacon().await,
-        //     }
-        // }
+            match select(accept_gs, beacon_ticker.next()).await {
+                Either::First(e) => self.handle_gs_event(e.unwrap()).await,
+                Either::Second(_) => self.send_beacon().await,
+            }
+        }
     }
 
     async fn send_beacon(&mut self) {
