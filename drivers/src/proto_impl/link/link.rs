@@ -1,7 +1,7 @@
 use crate::proto_impl::link::frame::Frame;
 
 use super::error::LinkError;
-use sat_core::comm::address::Address;
+use sat_core::comm::address::{Address, BROADCAST_ADDRESS};
 use sat_core::comm::link::LinkLayer;
 use sat_core::comm::phy::PhyLayer;
 
@@ -52,7 +52,8 @@ impl<P: PhyLayer> LinkLayer for LinkImpl<P> {
                 // ждём следующий. dst у него всё равно не прочитать.
                 Err(_) => continue,
             };
-            if Address(frame.dst) == self.addr {
+            let dst = Address(frame.dst);
+            if dst == self.addr || dst == BROADCAST_ADDRESS {
                 break (n, frame.src);
             }
         };
@@ -199,17 +200,31 @@ mod tests {
     }
 
     #[test]
-    fn recv_frame_ignores_broadcast_currently() {
-        // Документирует текущее поведение: BROADCAST_ADDRESS фильтруется.
+    fn recv_frame_accepts_broadcast() {
+        // Broadcast-кадры (адрес 0xFFFFFFFF) доходят до каждого узла.
         let mut phy = MockPhy::default();
         phy.push_rx(wire_frame(7, BROADCAST_ADDRESS.0, &[9]));
-        phy.push_rx(wire_frame(7, 1, &[1]));
         let mut link = LinkImpl::new(OUR, phy);
 
         let mut buf = [0u8; 255];
         let (_, payload) = block_on(link.recv_frame(&mut buf)).unwrap();
 
-        assert_eq!(payload, &[1]);
+        assert_eq!(payload, &[9]);
+    }
+
+    #[test]
+    fn recv_frame_still_rejects_foreign_unicast() {
+        // Чужой unicast-адрес отбрасывается, broadcast проходит.
+        let mut phy = MockPhy::default();
+        phy.push_rx(wire_frame(7, 99, &[5]));
+        phy.push_rx(wire_frame(8, 1, &[1, 2, 3]));
+        let mut link = LinkImpl::new(OUR, phy);
+
+        let mut buf = [0u8; 255];
+        let (src, payload) = block_on(link.recv_frame(&mut buf)).unwrap();
+
+        assert_eq!(src, Address(8));
+        assert_eq!(payload, &[1, 2, 3]);
     }
 
     #[test]
