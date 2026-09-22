@@ -33,6 +33,12 @@ name = "lora_868_rx"
 [[bin]]
 name = "mmc5983ma"
 
+[[bin]]
+name = "tx_flash"
+
+[[bin]]
+name = "flash_read"
+
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }
