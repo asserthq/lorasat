@@ -3,6 +3,7 @@
 #[cfg(test)]
 extern crate std;
 
+pub mod flash;
 pub mod lora;
 //pub mod mock;
 pub mod proto_impl;
