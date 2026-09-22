@@ -10,7 +10,8 @@ use sat_core::{
 use crate::{identity, led::BLINK_FLAG, tm::Telemetry};
 
 const SLOT_MS: u32 = 100;
-const BEACON_GUARD_MS: u32 = 500;
+
+const BEACON_GUARD_MS: u32 = 2000;
 
 pub struct Device<L: LinkLayer> {
     link: L,
@@ -68,8 +69,6 @@ impl<L: LinkLayer> Device<L> {
             };
 
             self.send_client_telemetry(beacon.sat_addr.0, &tm).await;
-
-            Timer::after_millis(1500).await;
         }
     }
 
