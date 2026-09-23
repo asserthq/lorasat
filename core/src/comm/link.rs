@@ -5,11 +5,15 @@ use core::fmt::Debug;
 pub trait LinkLayer {
     type Error: Debug + defmt::Format;
 
-    async fn send_frame(&mut self, dst: Address, frame: &[u8]) -> Result<(), Self::Error>;
-    async fn recv_frame<'a>(
-        &mut self,
-        buf: &'a mut [u8],
-    ) -> Result<(Address, &'a [u8]), Self::Error>;
+    async fn send_beacon(&mut self, beacon: &[u8]) -> Result<(), Self::Error>;
+    async fn send_frame(&mut self, dst: Address, data: &[u8]) -> Result<(), Self::Error>;
+    async fn recv_frame<'a>(&mut self, buf: &'a mut [u8]) -> Result<RecvFrame<'a>, Self::Error>;
 
     fn addr(&self) -> Address;
+}
+
+#[derive(Debug)]
+pub enum RecvFrame<'a> {
+    Beacon { payload: &'a [u8] },
+    Data { src: Address, payload: &'a [u8] },
 }
