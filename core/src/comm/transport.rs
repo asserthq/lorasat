@@ -6,6 +6,7 @@ pub trait TransportLayer {
     type Error: Debug;
     type Session: TransportSession<Error = Self::Error>;
 
+    async fn send_beacon(&mut self, beacon: &[u8]) -> Result<(), Self::Error>;
     async fn send_datagram(&mut self, dst: Address, data: &[u8]) -> Result<(), Self::Error>;
     async fn connect<'a>(&mut self, dst: Address) -> Result<Self::Session, Self::Error>;
 
@@ -26,6 +27,7 @@ pub trait TransportSession {
 }
 
 pub enum TransportEvent<'a, S: TransportSession> {
+    Beacon { payload: &'a [u8] },
     Datagram { from: Address, data: &'a [u8] },
     Session(S),
 }

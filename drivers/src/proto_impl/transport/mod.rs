@@ -1,3 +1,5 @@
 pub mod error;
-pub mod session;
+pub mod pdu;
 pub mod transport;
+
+pub use transport::{SessionImpl, TransportError, TransportImpl};

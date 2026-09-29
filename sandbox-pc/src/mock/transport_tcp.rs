@@ -5,7 +5,7 @@ use sat_core::comm::{Address, TransportEvent, TransportLayer, TransportSession};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 
-/// Конвенция Address -> 127.0.0.1:(PORT_BASE + addr), как в PhyMockUDP.
+/// Конвенция Address -> 127.0.0.1:(PORT_BASE + addr).
 /// Не поднимать оба мока на одном адресе в одном процессе: UDP-порт общий.
 const PORT_BASE: u16 = 9000;
 
@@ -17,24 +17,36 @@ fn address_of(sock: SocketAddr) -> Address {
     Address(u32::from(sock.port() - PORT_BASE))
 }
 
+/// Tag-байты для различения датаграмм и маяков в UDP.
+const TAG_DATAGRAM: u8 = 0x00;
+const TAG_BEACON: u8 = 0x01;
+
+/// Максимальный размер UDP-пакета (заголовок + payload).
+const MAX_UDP: usize = 512;
+
 /// Mock транспортного уровня поверх реальных TCP/UDP сокетов (PC sandbox).
 ///
-/// Датаграммы — UDP, сессии — TCP с length-prefix (u32 BE) фреймингом.
+/// Датаграммы — UDP с tag `0x00`.
+/// Маяки — UDP с tag `0x01`, отправляются всем адресам из `beacon_targets`.
+/// Сессии — TCP с length-prefix (u32 BE) фреймингом.
 #[derive(Debug)]
 pub struct TransportMockTCP {
     listener: TcpListener,
     udp: UdpSocket,
+    beacon_targets: Vec<SocketAddr>,
 }
 
 impl TransportMockTCP {
-    pub async fn new(local: SocketAddr) -> io::Result<Self> {
-        let listener = TcpListener::bind(local).await?;
-        let udp = UdpSocket::bind(local).await?;
-        Ok(Self { listener, udp })
-    }
-
-    pub async fn from_addr(local: Address) -> io::Result<Self> {
-        Self::new(socket_addr_of(local)).await
+    pub async fn new(local: Address, beacon_targets: &[Address]) -> io::Result<Self> {
+        let local_sock = socket_addr_of(local);
+        let listener = TcpListener::bind(local_sock).await?;
+        let udp = UdpSocket::bind(local_sock).await?;
+        let targets = beacon_targets.iter().map(|a| socket_addr_of(*a)).collect();
+        Ok(Self {
+            listener,
+            udp,
+            beacon_targets: targets,
+        })
     }
 }
 
@@ -42,8 +54,29 @@ impl TransportLayer for TransportMockTCP {
     type Error = io::Error;
     type Session = TcpSession;
 
+    async fn send_beacon(&mut self, beacon: &[u8]) -> io::Result<()> {
+        if self.beacon_targets.is_empty() {
+            return Ok(());
+        }
+        let mut buf = [0u8; MAX_UDP];
+        buf[0] = TAG_BEACON;
+        let len = beacon.len().min(MAX_UDP - 1);
+        buf[1..1 + len].copy_from_slice(&beacon[..len]);
+        let total = 1 + len;
+        for dst in &self.beacon_targets {
+            self.udp.send_to(&buf[..total], *dst).await?;
+        }
+        Ok(())
+    }
+
     async fn send_datagram(&mut self, dst: Address, data: &[u8]) -> io::Result<()> {
-        self.udp.send_to(data, socket_addr_of(dst)).await?;
+        let mut buf = [0u8; MAX_UDP];
+        buf[0] = TAG_DATAGRAM;
+        let len = data.len().min(MAX_UDP - 1);
+        buf[1..1 + len].copy_from_slice(&data[..len]);
+        self.udp
+            .send_to(&buf[..1 + len], socket_addr_of(dst))
+            .await?;
         Ok(())
     }
 
@@ -60,7 +93,22 @@ impl TransportLayer for TransportMockTCP {
             }
             recv = self.udp.recv_from(buf) => {
                 let (n, from) = recv?;
-                Ok(TransportEvent::Datagram { from: address_of(from), data: &buf[..n] })
+                if n < 1 {
+                    return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "empty udp packet"));
+                }
+                match buf[0] {
+                    TAG_DATAGRAM => Ok(TransportEvent::Datagram {
+                        from: address_of(from),
+                        data: &buf[1..n],
+                    }),
+                    TAG_BEACON => Ok(TransportEvent::Beacon {
+                        payload: &buf[1..n],
+                    }),
+                    _ => Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "unknown udp tag byte",
+                    )),
+                }
             }
         }
     }
@@ -107,32 +155,74 @@ mod tests {
 
     #[tokio::test]
     async fn datagram_roundtrip() {
-        let mut sat = TransportMockTCP::from_addr(Address(2)).await.unwrap();
-        let mut gs = TransportMockTCP::from_addr(Address(1)).await.unwrap();
+        let mut sat = TransportMockTCP::new(Address(2), &[]).await.unwrap();
+        let mut gs = TransportMockTCP::new(Address(1), &[]).await.unwrap();
 
         sat.send_datagram(Address(1), b"ping").await.unwrap();
 
-        let mut buf = [0u8; 256];
+        let mut buf = [0u8; 512];
         match gs.next(&mut buf).await.unwrap() {
             TransportEvent::Datagram { from, data } => {
                 assert_eq!(from, Address(2));
                 assert_eq!(data, b"ping");
             }
-            TransportEvent::Session(_) => panic!("expected datagram"),
+            _ => panic!("expected Datagram"),
         }
     }
 
     #[tokio::test]
+    async fn beacon_broadcast() {
+        let mut sat = TransportMockTCP::new(Address(101), &[Address(102), Address(103)])
+            .await
+            .unwrap();
+        let mut gs1 = TransportMockTCP::new(Address(102), &[]).await.unwrap();
+        let mut gs2 = TransportMockTCP::new(Address(103), &[]).await.unwrap();
+
+        sat.send_beacon(b"hello").await.unwrap();
+
+        let mut buf = [0u8; 512];
+        match gs1.next(&mut buf).await.unwrap() {
+            TransportEvent::Beacon { payload } => {
+                assert_eq!(payload, b"hello");
+            }
+            _ => panic!("expected Beacon"),
+        }
+        match gs2.next(&mut buf).await.unwrap() {
+            TransportEvent::Beacon { payload } => {
+                assert_eq!(payload, b"hello");
+            }
+            _ => panic!("expected Beacon"),
+        }
+    }
+
+    #[tokio::test]
+    async fn beacon_only_sent_to_targets() {
+        // GS не в beacon_targets — не получает маяк.
+        let mut sat = TransportMockTCP::new(Address(30), &[Address(22)])
+            .await
+            .unwrap();
+        let mut gs = TransportMockTCP::new(Address(21), &[]).await.unwrap();
+
+        sat.send_beacon(b"secret").await.unwrap();
+
+        // GS не должен получить — используем timeout
+        let mut buf = [0u8; 512];
+        let result =
+            tokio::time::timeout(std::time::Duration::from_millis(200), gs.next(&mut buf)).await;
+        assert!(result.is_err(), "gs should NOT receive beacon");
+    }
+
+    #[tokio::test]
     async fn session_roundtrip() {
-        let mut server = TransportMockTCP::from_addr(Address(10)).await.unwrap();
-        let mut client = TransportMockTCP::from_addr(Address(11)).await.unwrap();
+        let mut server = TransportMockTCP::new(Address(201), &[]).await.unwrap();
+        let mut client = TransportMockTCP::new(Address(202), &[]).await.unwrap();
 
         let (client_session, mut server_session) =
-            tokio::join!(client.connect(Address(10)), async {
+            tokio::join!(client.connect(Address(201)), async {
                 let mut ignore = [0u8; 1];
                 match server.next(&mut ignore).await {
                     Ok(TransportEvent::Session(s)) => s,
-                    _ => panic!("expected session"),
+                    _ => panic!("expected Session"),
                 }
             });
         let mut client_session = client_session.unwrap();

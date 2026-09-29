@@ -44,12 +44,7 @@ impl<T: TransportLayer> CommSystem<T> {
         };
         let mut buf = [0u8; 255];
         let payload = postcard::to_slice(&beacon, &mut buf).unwrap();
-        if self
-            .transport
-            .send_datagram(BROADCAST_ADDRESS, payload)
-            .await
-            .is_err()
-        {
+        if self.transport.send_beacon(payload).await.is_err() {
             warn!("beacon send failed");
         }
     }
@@ -59,14 +54,35 @@ impl<T: TransportLayer> CommSystem<T> {
         match event {
             TransportEvent::Datagram { from, data } => self.handle_gs_datagram(from, data).await,
             TransportEvent::Session(s) => self.handle_gs_session(s).await,
+            TransportEvent::Beacon { payload } => {}
         }
     }
 
-    async fn handle_gs_datagram(&mut self, from: Address, _data: &[u8]) {
+    async fn handle_gs_datagram(&mut self, from: Address, data: &[u8]) {
         info!("recieved datagram from address: {:?}", from);
+        if data == b"fetch" {
+            info!("fetch command — sending dummy payload to {:?}", from);
+            let dummy = generate_dummy_data(2048);
+            match self.transport.connect(from).await {
+                Ok(mut session) => {
+                    if let Err(e) = session.send(&dummy).await {
+                        warn!("dummy send failed: {:?}", e);
+                    } else {
+                        info!("sent {} bytes of dummy data", dummy.len());
+                    }
+                }
+                Err(e) => warn!("connect to {:?} failed: {:?}", from, e),
+            }
+        }
     }
 
     async fn handle_gs_session(&mut self, session: T::Session) {
         info!("new session from: {:?}", session.peer_addr());
     }
+}
+
+/// Генерирует тестовые данные заданного размера.
+/// Паттерн: 0x00, 0x01, 0x02, ..., 0xFF, 0x00, ...
+fn generate_dummy_data(size: usize) -> Vec<u8> {
+    (0..size).map(|i| (i % 256) as u8).collect()
 }

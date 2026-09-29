@@ -8,8 +8,9 @@ version = "0.1.0"
 name = "sat"
 path = "src/bin/sat/main.rs"
 
-# client/asat/gs перенесены в examples/ — сломаны от старой архитектуры,
-# собираются только явно: cargo build --example client
+[[bin]]
+name = "gs"
+path = "src/bin/gs/main.rs"
 
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
@@ -18,7 +19,7 @@ sat_subsystems = { package = "sat-subsystems", path = "../subsystems" }
 
 embassy-futures = "0.1.2"
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
-tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util"] }
+tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "sync"] }
 log = "0.4"
 env_logger = "0.11"
 serde = { version = "1.0.229", default-features = false,  features = ["derive"] }

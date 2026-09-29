@@ -3,7 +3,9 @@ use nalgebra::Vector3;
 
 use sat_core::time::Delay;
 
-use sat_core::adcs::{AdcsCommand, AdcsMode, BdotAlgorithm, Coils, Mag};
+use sat_core::adcs::{AdcSystem, AdcsCommand, AdcsEvent, AdcsMode, BdotAlgorithm, Coils, Mag};
+
+use super::error::AdcsError;
 
 #[derive(Default)]
 pub struct AdcsState {
@@ -12,7 +14,7 @@ pub struct AdcsState {
     coil_levels: Vector3<f32>,
 }
 
-pub struct AdcSystem<M: Mag, A: Coils, D: Delay> {
+pub struct AdcSystemImpl<M: Mag, A: Coils, D: Delay> {
     mag: M,
     coils: A,
     delay: D,
@@ -21,7 +23,7 @@ pub struct AdcSystem<M: Mag, A: Coils, D: Delay> {
     pending_cmd: Option<AdcsCommand>,
 }
 
-impl<M: Mag, A: Coils, D: Delay> AdcSystem<M, A, D> {
+impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
     pub fn new(mag: M, coils: A, delay: D) -> Self {
         Self {
             mag,
@@ -79,5 +81,17 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystem<M, A, D> {
 
     fn reset(&mut self) {
         self.state = AdcsState::default();
+    }
+}
+
+impl<M: Mag, A: Coils, D: Delay> AdcSystem for AdcSystemImpl<M, A, D> {
+    type Error = AdcsError;
+
+    async fn apply_cmd(&mut self, cmd: AdcsCommand) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    async fn next_event(&self) -> Result<AdcsEvent, Self::Error> {
+        todo!()
     }
 }
