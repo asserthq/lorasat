@@ -11,6 +11,7 @@ use embassy_executor::Spawner;
 use embassy_stm32::exti::{self, ExtiInput};
 use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::time::{khz, mhz};
+use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
 use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -109,5 +110,9 @@ async fn main(_spawner: Spawner) {
         timestamp: 777,
     };
 
-    task::sat_task(link, beacon, logger).await;
+    let mut wdg = IndependentWatchdog::new(p.IWDG, 20_000_000);
+    wdg.unleash();
+    info!("watchdog: started, 20s timeout");
+
+    task::sat_task(link, beacon, logger, wdg).await;
 }
