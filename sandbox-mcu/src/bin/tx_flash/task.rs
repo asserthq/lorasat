@@ -1,5 +1,6 @@
 use defmt::{info, warn};
 use embassy_futures::select::{Either, select};
+use embassy_stm32::{peripherals, wdg::IndependentWatchdog};
 use embassy_time::{Duration, Instant, Ticker};
 
 use sat_core::comm::address::{Address, BROADCAST_ADDRESS};
@@ -12,8 +13,12 @@ const RECORD_HEADER_LEN: usize = 1 + 4 + 4;
 
 const RX_BUF_LEN: usize = 255;
 
-pub async fn sat_task<L, T>(mut link: L, beacon: Beacon, mut logger: T)
-where
+pub async fn sat_task<L, T>(
+    mut link: L,
+    beacon: Beacon,
+    mut logger: T,
+    mut wdg: IndependentWatchdog<'_, peripherals::IWDG>,
+) where
     L: LinkLayer,
     L::Error: defmt::Format,
     T: Logger,
@@ -34,6 +39,7 @@ where
                 send_beacon(&mut link, &beacon).await;
             }
         }
+        wdg.pet();
     }
 }
 
