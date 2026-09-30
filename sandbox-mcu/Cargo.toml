@@ -39,6 +39,9 @@ name = "tx_flash"
 [[bin]]
 name = "flash_read"
 
+[[bin]]
+name = "drv8833"
+
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }

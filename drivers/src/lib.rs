@@ -3,6 +3,7 @@
 #[cfg(test)]
 extern crate std;
 
+pub mod drv8833;
 pub mod flash;
 pub mod lora;
 //pub mod mock;
