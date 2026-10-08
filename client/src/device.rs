@@ -3,8 +3,7 @@ use core::sync::atomic::Ordering;
 use defmt::*;
 use embassy_time::Timer;
 use sat_core::{
-    comm::link::RecvFrame,
-    comm::{Address, LinkLayer},
+    comm::{Address, LinkLayer, link::RecvFrame},
     entity::{Beacon, ClientData},
 };
 
@@ -81,7 +80,7 @@ impl<L: LinkLayer> Device<L> {
                 Ok(RecvFrame::Beacon { payload }) => {
                     match postcard::from_bytes::<Beacon>(payload) {
                         Ok(beacon) => return beacon,
-                        Err(_) => info!("not beacon or decode failed"),
+                        Err(_) => error!("decode failed"),
                     }
                 }
                 Ok(RecvFrame::Data { .. }) => info!("ignoring data frame while waiting for beacon"),

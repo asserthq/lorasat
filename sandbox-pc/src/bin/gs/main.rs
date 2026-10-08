@@ -2,7 +2,7 @@ use log::*;
 #[allow(unused_imports)]
 use sandbox_pc::mock::{PhyRadioUDP, TransportMockTCP};
 use sat_core::comm::address::Address;
-use sat_core::comm::{TransportEvent, TransportLayer, TransportSession};
+use sat_core::comm::{Socket, TransportEvent, TransportLayer};
 use sat_drivers::proto_impl::link::LinkImpl;
 use sat_drivers::proto_impl::transport::TransportImpl;
 

@@ -74,3 +74,4 @@ heapless = { version = "0.9.3", features = ["serde", "defmt"] }
 
 lora-phy = "3.0.1"
 mmc5983_rs = { version = "0.0.1", features = ["async"] }
+embassy-sync = "0.8.0"

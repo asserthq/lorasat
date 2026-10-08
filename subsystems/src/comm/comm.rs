@@ -1,9 +1,7 @@
 use defmt_or_log::*;
 use embassy_futures::select::{Either, select};
 use embassy_time::{Duration, Instant, Ticker};
-use sat_core::comm::{
-    Address, TransportEvent, TransportLayer, TransportSession, address::BROADCAST_ADDRESS,
-};
+use sat_core::comm::{Address, Socket, TransportEvent, TransportLayer, address::BROADCAST_ADDRESS};
 use sat_core::entity::Beacon;
 
 use crate::comm::CommConfig;
@@ -49,7 +47,7 @@ impl<T: TransportLayer> CommSystem<T> {
         }
     }
 
-    async fn handle_gs_event(&mut self, event: TransportEvent<'_, T::Session>) {
+    async fn handle_gs_event(&mut self, event: TransportEvent<'_, T::Socket>) {
         info!("transport event");
         match event {
             TransportEvent::Datagram { from, data } => self.handle_gs_datagram(from, data).await,
@@ -76,7 +74,7 @@ impl<T: TransportLayer> CommSystem<T> {
         }
     }
 
-    async fn handle_gs_session(&mut self, session: T::Session) {
+    async fn handle_gs_session(&mut self, session: T::Socket) {
         info!("new session from: {:?}", session.peer_addr());
     }
 }

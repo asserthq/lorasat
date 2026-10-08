@@ -11,4 +11,10 @@ pub enum TransportError {
     Decode,
     /// Сообщение не влезает в MAX_CHUNKS × MTU.
     PayloadTooLarge,
+    /// Сокет не подключён.
+    NotConnected,
+    /// Порт занят.
+    PortInUse,
+    /// Буфер реассемблирования переполнен.
+    ReassemblyOverflow,
 }

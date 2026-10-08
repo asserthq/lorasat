@@ -1,7 +1,7 @@
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr};
 
-use sat_core::comm::{Address, TransportEvent, TransportLayer, TransportSession};
+use sat_core::comm::{Address, Socket, TransportEvent, TransportLayer};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 
@@ -52,7 +52,7 @@ impl TransportMockTCP {
 
 impl TransportLayer for TransportMockTCP {
     type Error = io::Error;
-    type Session = TcpSession;
+    type Socket = TcpSession;
 
     async fn send_beacon(&mut self, beacon: &[u8]) -> io::Result<()> {
         if self.beacon_targets.is_empty() {
@@ -120,7 +120,7 @@ pub struct TcpSession {
     stream: TcpStream,
 }
 
-impl TransportSession for TcpSession {
+impl Socket for TcpSession {
     type Error = io::Error;
 
     async fn send(&mut self, data: &[u8]) -> io::Result<()> {

@@ -13,8 +13,11 @@ use embassy_stm32::gpio::{Level, Output, Pull, Speed};
 use embassy_stm32::time::{khz, mhz};
 use embassy_stm32::wdg::IndependentWatchdog;
 use embassy_stm32::{bind_interrupts, dma, interrupt, peripherals, spi};
+use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
+
+use embassy_sync::watch::{Watch, Receiver, Sender};
 
 use sat_core::comm::Address;
 use sat_core::entity::Beacon;
@@ -35,6 +38,10 @@ bind_interrupts!(struct Irqs {
     EXTI4 => exti::InterruptHandler<interrupt::typelevel::EXTI4>; // DIO1
     EXTI9_5 => exti::InterruptHandler<interrupt::typelevel::EXTI9_5>; // BUSY
 });
+
+struct LedEvent {}
+
+static WATCH: Watch<CriticalSectionRawMutex, u8, 2> = Watch::new();
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -104,6 +111,8 @@ async fn main(_spawner: Spawner) {
         logger
     };
 
+    let led = Output::new(p.PC13, Level::Low, Speed::Low);
+
     let beacon = Beacon {
         sat_addr: Address(config::SAT_ADDR),
         interval_sec: config::BEACON_INTERVAL_SEC,
@@ -114,5 +123,8 @@ async fn main(_spawner: Spawner) {
     wdg.unleash();
     info!("watchdog: started, 20s timeout");
 
-    task::sat_task(link, beacon, logger, wdg).await;
+    let led_channel = Channel::<NoopRawMutex, LedEvent, 1>::new();
+    let (tx, rx) = led_channel
+
+    task::sat_task(link, beacon, logger, wdg, led_tx).await;
 }

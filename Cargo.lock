@@ -1363,6 +1363,7 @@ dependencies = [
  "embassy-executor",
  "embassy-futures",
  "embassy-stm32",
+ "embassy-sync",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
@@ -1414,6 +1415,8 @@ version = "0.1.0"
 dependencies = [
  "defmt 1.1.1",
  "drv8833-driver",
+ "embassy-futures",
+ "embassy-sync",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",

@@ -58,7 +58,6 @@ async fn main(_spawner: Spawner) {
         .await
         .unwrap()
     };
-    let mut link = LinkImpl::new(radio);
 
     let mut rx_buf = [0u8; 255];
 

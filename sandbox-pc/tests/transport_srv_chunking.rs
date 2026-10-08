@@ -5,7 +5,7 @@
 
 use sandbox_pc::mock::PhyRadioUDP;
 use sat_core::comm::address::Address;
-use sat_core::comm::transport::{TransportEvent, TransportLayer, TransportSession};
+use sat_core::comm::transport::{TransportEvent, TransportLayer, Socket};
 use sat_drivers::proto_impl::link::LinkImpl;
 use sat_drivers::proto_impl::transport::TransportImpl;
 

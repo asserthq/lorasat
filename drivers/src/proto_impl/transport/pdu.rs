@@ -1,32 +1,3 @@
-//! PDU сервисного транспортного уровня (Session control + надёжная передача).
-//!
-//! Ненадёжные датаграммы идут через tag-байт 0x00 (без PDU).
-//! SrvPdu используется только для управления сессиями и данных внутри сессии.
-//!
-//! Wire-формат: postcard, variant index (varint) + поля.
-//!
-//! ```text
-//! Connect:
-//! ┌──────────┐
-//! │ variant  │
-//! └──────────┘
-//!
-//! Accept:
-//! ┌──────────┐
-//! │ variant  │
-//! └──────────┘
-//!
-//! Data:
-//! ┌──────────┬──────────┬───────────┬───────────┬───────────┬──────────────┐
-//! │ variant  │ seq: u32 │ first:bool│ last: bool│ len(varint)│ payload(len) │
-//! └──────────┴──────────┴───────────┴───────────┴───────────┴──────────────┘
-//!
-//! Ack:
-//! ┌──────────┬────────────────────┬───────────┐
-//! │ variant  │ cumulative_seq: u32│ bitmap:u16│
-//! └──────────┴────────────────────┴───────────┘
-//! ```
-
 use heapless::Vec;
 use serde::{Deserialize, Serialize};
 
@@ -36,28 +7,24 @@ pub const MTU: usize = 240;
 /// Максимальное число чанков в одном send().
 pub const MAX_CHUNKS: usize = 32;
 
+pub struct Packet {
+    pub sport: u8,
+    pub dport: u8,
+    pub pdu: Pdu,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SrvPdu {
-    /// Запрос на открытие сессии (активная сторона).
+pub enum Pdu<'a> {
     Connect,
-    /// Подтверждение открытия сессии (пассивная сторона).
     Accept,
-    /// Чанк данных внутри сессии.
     Data {
-        /// Монотонно возрастающий номер чанка (с 0 для каждого send).
         seq: u32,
-        /// true — первый чанк сообщения.
         first: bool,
-        /// true — последний чанк сообщения.
         last: bool,
-        /// Данные чанка, до MTU байт.
-        payload: Vec<u8, MTU>,
+        payload: &'a [u8],
     },
-    /// Выборочное подтверждение с битовой картой.
     Ack {
-        /// Все чанки с seq ≤ cumulative_seq подтверждены.
         cumulative_seq: u32,
-        /// Бит i = 1: чанк seq = cumulative_seq + 1 + i получен.
         bitmap: u16,
     },
 }
