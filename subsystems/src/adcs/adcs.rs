@@ -40,6 +40,7 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
             self.read_sensors().await;
             self.apply_control().await;
             self.handle_commands().await;
+            self.delay.delay(Duration::from_millis(200)).await;
         }
     }
 
@@ -53,12 +54,15 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
 
     async fn apply_control(&mut self) {
         match self.state.mode {
-            AdcsMode::Idle => {}
+            AdcsMode::Idle => {
+                let zero = Vector3::zeros();
+                self.state.coil_levels = zero;
+                self.coils.apply_pwm(self.state.coil_levels).await;
+            }
             AdcsMode::Detumbling => {
                 let u = self.bdot.calc_control(self.state.outer_b);
                 self.state.coil_levels = u;
-                self.coils.apply_levels(u).await;
-                self.delay.delay(Duration::from_millis(200)).await;
+                self.coils.apply_pwm(u).await;
             }
         }
     }
