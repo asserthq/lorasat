@@ -1,3 +1,4 @@
 pub enum CoilsError {
-    TodoError,
+    LevelOutOfRange,
+    SetPwmOnCoil(u8),
 }

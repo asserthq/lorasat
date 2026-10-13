@@ -1,4 +1,4 @@
-use drv8833_driver::{Driver, MotorDriver, MotorDriverError, PwmMovement, PwmSplitDriverType};
+use drv8833_driver::{MotorDriver, MotorDriverError, PwmMovement, PwmSplitDriverType};
 use embedded_hal::{
     digital::{InputPin, OutputPin},
     pwm::SetDutyCycle,
@@ -113,11 +113,18 @@ where
     type Error = CoilsError;
 
     async fn apply_pwm(&mut self, levels: Vector3<f32>) -> Result<(), Self::Error> {
-        self.set_x(levels.x);
-        self.set_y(levels.y);
-        self.set_z(levels.z);
+        if levels.amax() > 1.0 {
+            Err(CoilsError::LevelOutOfRange)
+        } else {
+            self.set_x(levels.x)
+                .map_err(|_| CoilsError::SetPwmOnCoil(0))?;
+            self.set_y(levels.y)
+                .map_err(|_| CoilsError::SetPwmOnCoil(1))?;
+            self.set_z(levels.z)
+                .map_err(|_| CoilsError::SetPwmOnCoil(2))?;
 
-        Ok(())
+            Ok(())
+        }
     }
 
     async fn get_current(&mut self) -> Result<Vector3<f32>, Self::Error> {
