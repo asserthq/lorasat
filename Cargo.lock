@@ -409,6 +409,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "drv8833-driver"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9315e692be0ae912871b154c64194a6f87dff7c9aaff751d44a8813afeefc29"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "embassy-embedded-hal"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1404,6 +1413,7 @@ name = "sat-drivers"
 version = "0.1.0"
 dependencies = [
  "defmt 1.1.1",
+ "drv8833-driver",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
@@ -1412,6 +1422,7 @@ dependencies = [
  "embedded-sdmmc",
  "heapless 0.9.3",
  "lora-phy",
+ "nalgebra",
  "postcard",
  "sat-core",
  "serde",
