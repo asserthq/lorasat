@@ -3,8 +3,8 @@ use embassy_futures::select::{Either, select};
 use embassy_stm32::{peripherals, wdg::IndependentWatchdog};
 use embassy_time::{Duration, Instant, Ticker};
 
-use sat_core::comm::address::{Address, BROADCAST_ADDRESS};
-use sat_core::comm::link::LinkLayer;
+use sat_core::comm::address::Address;
+use sat_core::comm::link::{LinkLayer, RecvFrame};
 use sat_core::entity::{Beacon, ClientData};
 use sat_core::storage::Logger;
 
@@ -51,7 +51,8 @@ where
     L::Error: defmt::Format,
 {
     match link.recv_frame(buf).await {
-        Ok((src, payload)) => Some((src, payload)),
+        Ok(RecvFrame::Data { src, payload }) => Some((src, payload)),
+        Ok(RecvFrame::Beacon { .. }) => None,
         Err(e) => {
             warn!("rx error: {:?}", e);
             None
@@ -66,8 +67,8 @@ where
     let mut buf = [0u8; 255];
     match postcard::to_slice(beacon, &mut buf) {
         Ok(ser) => {
-            link.send_frame(BROADCAST_ADDRESS, ser).await.unwrap();
-            info!("beacon tx -> 0x{:08x}", BROADCAST_ADDRESS.0);
+            link.send_beacon(ser).await.unwrap();
+            info!("beacon tx (sat=0x{:08x})", beacon.sat_addr.0);
         }
         Err(_) => warn!("beacon serialize failed"),
     }
