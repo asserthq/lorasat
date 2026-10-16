@@ -1,4 +1,4 @@
-use drv8833_driver::{MotorDriver, MotorDriverError, PwmMovement, PwmSplitDriverType};
+use drv8833_driver::{Breaks, MotorDriver, MotorDriverError, PwmMovement, PwmSplitDriverType};
 use embedded_hal::{
     digital::{InputPin, OutputPin},
     pwm::SetDutyCycle,
@@ -68,7 +68,9 @@ where
 
     fn set_x(&mut self, level: f32) -> Result<(), MotorDriverError> {
         let per = Self::level_to_percent(level);
-        if level >= 0.0 {
+        if level == 0.0 {
+            self.drv1.a.coast()
+        } else if level > 0.0 {
             self.drv1.a.forward(per)
         } else {
             self.drv1.a.reverse(per)
@@ -77,7 +79,9 @@ where
 
     fn set_y(&mut self, level: f32) -> Result<(), MotorDriverError> {
         let per = Self::level_to_percent(level);
-        if level >= 0.0 {
+        if level == 0.0 {
+            self.drv1.b.coast()
+        } else if level > 0.0 {
             self.drv1.b.forward(per)
         } else {
             self.drv1.b.reverse(per)
@@ -86,7 +90,9 @@ where
 
     fn set_z(&mut self, level: f32) -> Result<(), MotorDriverError> {
         let per = Self::level_to_percent(level);
-        if level >= 0.0 {
+        if level == 0.0 {
+            self.drv2.a.coast()
+        } else if level > 0.0 {
             self.drv2.a.forward(per)
         } else {
             self.drv2.a.reverse(per)

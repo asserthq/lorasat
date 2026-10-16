@@ -1,46 +1,46 @@
+use core::time::Duration;
 use nalgebra::Vector3;
 
 pub struct BdotAlgorithm {
-    prev_b: Vector3<f32>,
+    // Предыдущее измерение магнитного поля.
+    // Option нужен, чтобы отличать отсутствие измерения
+    // от реального вектора, равного нулю.
+    prev_b: Option<Vector3<f32>>,
+
+    // Коэффициент управления.
+    gain: f32,
 }
 
 impl BdotAlgorithm {
-    pub fn new() -> Self {
-        Self {
-            prev_b: Vector3::zeros(),
-        }
-    }
-
-    pub fn calc_control(&mut self, b: Vector3<f32>) -> Vector3<f32> {
-        if self.prev_b == Vector3::zeros() {
-            self.prev_b = b;
-            Vector3::zeros()
-        } else {
-            self.prev_b = b;
-            let control = -self.b_dot_norm(b);
-            control
-        }
+    pub fn new(gain: f32) -> Self {
+        Self { prev_b: None, gain }
     }
 
     pub fn reset(&mut self) {
-        self.prev_b = Vector3::zeros();
+        // Следующий вызов будет первым измерением.
+        self.prev_b = None;
     }
 
-    // fn b_dot(&self, field: Vector3<f32>, dt: Duration) -> Vector3<f32> {
-    //     (field - self.prev_field) / dt.as_secs_f32()
-    // }
-
-    fn b_dot_norm(&self, b: Vector3<f32>) -> Vector3<f32> {
-        let db = self.delta_b(b);
-        if db.norm() > f32::EPSILON {
-            db.normalize()
-        } else {
-            Vector3::zeros()
+    pub fn calc_control(&mut self, b: Vector3<f32>, dt: Duration) -> Vector3<f32> {
+        let dt_s = dt.as_secs_f32();
+        if !dt_s.is_finite() || dt_s <= 0.0 {
+            return Vector3::zeros();
         }
-    }
 
-    fn delta_b(&self, b: Vector3<f32>) -> Vector3<f32> {
-        b - self.prev_b
+        // При первом измерении производную оценить нельзя.
+        let Some(prev_b) = self.prev_b else {
+            self.prev_b = Some(b);
+            return Vector3::zeros();
+        };
+
+        // Оценка производной магнитного поля.
+        let b_dot = (b - prev_b) / dt_s;
+
+        // Сохраняем текущее измерение для следующего вызова.
+        self.prev_b = Some(b);
+
+        // Закон B-dot: требуемый магнитный дипольный момент.
+        -self.gain * b_dot
     }
 }
 
