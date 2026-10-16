@@ -40,6 +40,9 @@ name = "tx_flash"
 name = "flash_read"
 
 [[bin]]
+name = "flash_erase"
+
+[[bin]]
 name = "drv8833"
 
 [dependencies]

@@ -3,6 +3,7 @@ use core::sync::atomic::Ordering;
 use defmt::*;
 use embassy_time::Timer;
 use sat_core::{
+    comm::link::RecvFrame,
     comm::{Address, LinkLayer},
     entity::{Beacon, ClientData},
 };
@@ -76,18 +77,17 @@ impl<L: LinkLayer> Device<L> {
         let mut buf = [0u8; 255];
 
         loop {
-            let (_, frame) = match self.link.recv_frame(&mut buf).await {
-                Ok(x) => x,
-                Err(_) => {
-                    Timer::after_millis(100).await;
-                    continue;
+            match self.link.recv_frame(&mut buf).await {
+                Ok(RecvFrame::Beacon { payload }) => {
+                    match postcard::from_bytes::<Beacon>(payload) {
+                        Ok(beacon) => return beacon,
+                        Err(_) => info!("not beacon or decode failed"),
+                    }
                 }
-            };
-
-            match postcard::from_bytes::<Beacon>(&frame) {
-                Ok(beacon) => return beacon,
-                Err(_) => info!("not beacon or decode failed"),
+                Ok(RecvFrame::Data { .. }) => info!("ignoring data frame while waiting for beacon"),
+                Err(_) => {}
             }
+            Timer::after_millis(100).await;
         }
     }
 
