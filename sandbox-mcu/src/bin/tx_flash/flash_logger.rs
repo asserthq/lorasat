@@ -5,8 +5,8 @@ use embedded_hal::spi::SpiDevice;
 use embassy_time::Instant;
 
 use sat_core::storage::Logger;
-use sat_drivers::flash::ring::FlashRing;
 use sat_drivers::flash::Error;
+use sat_drivers::flash::ring::FlashRing;
 
 pub struct FlashLogger<SPI, DLY>
 where
@@ -42,6 +42,13 @@ where
             }
         }
         Ok(())
+    }
+
+    pub fn read_next<'a>(
+        &mut self,
+        buf: &'a mut [u8],
+    ) -> Result<Option<sat_drivers::flash::ring::Record<'a>>, Error> {
+        self.ring.read_next(buf)
     }
 }
 
