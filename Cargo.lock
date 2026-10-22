@@ -411,8 +411,7 @@ dependencies = [
 [[package]]
 name = "drv8833-driver"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9315e692be0ae912871b154c64194a6f87dff7c9aaff751d44a8813afeefc29"
+source = "git+https://github.com/Anryurev/drv8833-nostd.git?branch=main#13596ec597136d3f0f24a3cd6b9033f4a06d1507"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
