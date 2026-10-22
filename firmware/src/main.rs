@@ -6,20 +6,22 @@ use embassy_stm32::exti::{self, ExtiInput};
 use embassy_stm32::gpio::{Input, Level, Output, Pull, Speed};
 use embassy_stm32::time::khz;
 use embassy_stm32::{Peripherals, bind_interrupts, dma, interrupt, peripherals, spi};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::pubsub::PubSubChannel;
 use embassy_time::Delay;
 use embedded_hal_bus::spi::ExclusiveDevice;
 
 use firmware_lib as _;
 
+use sat_core::adcs::AdcsEvent;
+use sat_core::comm::Address;
 use sat_drivers::lora::Radio;
 use sat_drivers::proto_impl::link::LinkImpl;
 use sat_drivers::proto_impl::transport::simple::SimpleTransport;
 
 use crate::sat::Satellite;
 
-mod adcs;
-mod comm;
-mod sat;
+type EventChannel = PubSubChannel<CriticalSectionRawMutex, AdcsEvent, 4, 4, 4>;
 
 const LORA_FREQ_IN_HZ: u32 = 433_000_000;
 
@@ -58,8 +60,8 @@ async fn main(_spawner: Spawner) {
             .unwrap()
     };
 
-    let link_client = LinkImpl::new(phy_client);
-    let ts_client = SimpleTransport::new(1, link_client);
+    let link_client = LinkImpl::new(Address(10), phy_client);
 
-    let sat = Satellite::new(None, ts_client);
+    //let event_channel: EventChannel = PubSubChannel::new();
+    let event_channel = PubSubChannel::<CriticalSectionRawMutex, AdcsEvent, 4, 4, 4>::new();
 }
