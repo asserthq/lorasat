@@ -5,9 +5,12 @@ members = [
     "subsystems",
     "firmware",
 
-    "client",
-    "sandbox-mcu",
-    "sandbox-pc",
+    "client-device",
+    "ground-station",
+
+    # "sandbox-mcu",
+    # "sandbox-pc",
+    "examples/*"
 ]
 
 resolver = "3"

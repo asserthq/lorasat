@@ -23,5 +23,4 @@ embedded-io-async = "0.7"
 drv8833-driver = { git = "https://github.com/Anryurev/drv8833-nostd.git", branch = "main"}
 embassy-sync = { version = "0.8.0", features = ["defmt"] }
 embassy-futures = { version = "0.1.2", features = ["defmt"] }
-#sx126x = "0.3.0"
 nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }

@@ -1,21 +1,13 @@
 [package]
 authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
-name = "sandbox-pc"
+name = "examples-std"
 edition = "2024"
 version = "0.1.0"
 
-[[bin]]
-name = "sat"
-path = "src/bin/sat/main.rs"
-
-[[bin]]
-name = "gs"
-path = "src/bin/gs/main.rs"
-
 [dependencies]
-sat_core = { package = "sat-core", path = "../core" }
-sat_drivers = { package = "sat-drivers", path = "../drivers" }
-sat_subsystems = { package = "sat-subsystems", path = "../subsystems" }
+sat_core = { package = "sat-core", path = "../../core" }
+sat_drivers = { package = "sat-drivers", path = "../../drivers" }
+sat_subsystems = { package = "sat-subsystems", path = "../../subsystems" }
 
 embassy-futures = "0.1.2"
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }

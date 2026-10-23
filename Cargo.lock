@@ -781,6 +781,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "examples-std"
+version = "0.1.0"
+dependencies = [
+ "defmt 1.1.1",
+ "embassy-futures",
+ "embassy-time",
+ "env_logger",
+ "heapless 0.9.3",
+ "log",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "sat-subsystems",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "examples-stm32f401"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "defmt-test",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-stm32",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-hal-bus",
+ "embedded-io-async 0.7.0",
+ "heapless 0.9.3",
+ "lora-phy",
+ "mmc5983_rs",
+ "nalgebra",
+ "panic-probe",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "serde",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -873,6 +920,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "ground-station"
+version = "0.1.0"
+dependencies = [
+ "defmt 1.1.1",
+ "embassy-futures",
+ "embassy-time",
+ "env_logger",
+ "heapless 0.9.3",
+ "log",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "sat-subsystems",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -929,9 +994,9 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "jiff"
-version = "0.2.37"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ab1baf72f08796de0260609515130699b890ac25f30e610ad894bc5856cafdb"
+checksum = "b2b005715dcbeb0089a3c0dab99f2ff1cc3b2525323552703d648585d342a383"
 dependencies = [
  "defmt 1.1.1",
  "jiff-core",
@@ -954,9 +1019,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "0.2.37"
+version = "0.2.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "378268a1116ad67ae6228701118ac9f491d78fda38a40a1f1a9e1348de6f7212"
+checksum = "2cc9817253cf7c7ee4684451bd327e88d6f3658014e54a29198625590650695c"
 dependencies = [
  "jiff-core",
  "proc-macro2",
@@ -1089,9 +1154,9 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mio"
-version = "1.2.2"
+version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30d65c71f1ce40ab09135ce117d742b9f8a19ff91a41a8b57ed50bc2de59c427"
+checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
 dependencies = [
  "libc",
  "wasi",
@@ -1349,52 +1414,6 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
-
-[[package]]
-name = "sandbox-mcu"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.1.1",
- "defmt-rtt",
- "defmt-test",
- "embassy-executor",
- "embassy-futures",
- "embassy-stm32",
- "embassy-sync",
- "embassy-time",
- "embedded-hal 1.0.0",
- "embedded-hal-async",
- "embedded-hal-bus",
- "embedded-io-async 0.7.0",
- "heapless 0.9.3",
- "lora-phy",
- "mmc5983_rs",
- "panic-probe",
- "postcard",
- "sat-core",
- "sat-drivers",
- "serde",
-]
-
-[[package]]
-name = "sandbox-pc"
-version = "0.1.0"
-dependencies = [
- "defmt 1.1.1",
- "embassy-futures",
- "embassy-time",
- "env_logger",
- "heapless 0.9.3",
- "log",
- "postcard",
- "sat-core",
- "sat-drivers",
- "sat-subsystems",
- "serde",
- "tokio",
-]
 
 [[package]]
 name = "sat-core"
@@ -1704,9 +1723,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.53.1"
+version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
  "bytes",
  "libc",
