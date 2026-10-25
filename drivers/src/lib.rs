@@ -11,3 +11,4 @@ pub mod proto_impl;
 pub mod sd;
 //pub mod uart;
 pub mod coils;
+pub mod veml6030;

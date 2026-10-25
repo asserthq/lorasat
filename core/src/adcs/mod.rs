@@ -6,6 +6,7 @@ pub mod event;
 pub mod gyro;
 pub mod mag;
 pub mod mode;
+pub mod sunsensor;
 
 pub use adcs::AdcSystem;
 pub use bdot::BdotAlgorithm;
@@ -14,3 +15,4 @@ pub use command::AdcsCommand;
 pub use event::AdcsEvent;
 pub use mag::Mag;
 pub use mode::AdcsMode;
+pub use sunsensor::SunSensor;

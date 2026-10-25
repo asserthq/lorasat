@@ -3,7 +3,7 @@ use embedded_hal::{
     digital::{InputPin, OutputPin},
     pwm::SetDutyCycle,
 };
-use nalgebra::Vector3;
+use nalgebra::{SimdComplexField, Vector3};
 use sat_core::adcs::Coils;
 
 use crate::coils::error::CoilsError;
@@ -63,7 +63,7 @@ where
     }
 
     fn level_to_percent(level: f32) -> u8 {
-        (level * 100.0).round().abs() as u8
+        (level * 100.0).simd_round().abs() as u8
     }
 
     fn set_x(&mut self, level: f32) -> Result<(), MotorDriverError> {

@@ -3,6 +3,8 @@ use super::error::AdcsError;
 
 // Duration нужен для задания интервала времени.
 use core::time::Duration;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::Receiver;
 use embassy_time::Instant;
 // Vector3 — вектор из трёх чисел типа f32.
 // Здесь он используется для магнитного поля и управляющих сигналов катушек.
@@ -21,6 +23,8 @@ use sat_core::adcs::{
 
 // Импортируем общий интерфейс задержки.
 use sat_core::time::Delay;
+
+type CommandRx = Receiver<'static, CriticalSectionRawMutex, AdcsCommand, 4>;
 
 // Состояние системы ориентации и стабилизации.
 // Хранит текущий режим работы и последние значения, используемые алгоритмом.
@@ -46,12 +50,13 @@ pub struct AdcSystemImpl<M: Mag, A: Coils, D: Delay> {
     pending_cmd: Option<AdcsCommand>, // Команда, ожидающая обработки; None означает её отсутствие.
     dt: Option<u64>,
     prev_measurement_time: Option<Instant>,
+    rx: CommandRx,
 }
 
 // Реализуем методы для работы подсистемы СОС.
 impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
     // Создаёт экземпляр СОС и принимает необходимые аппаратные компоненты.
-    pub fn new(mag: M, coils: A, delay: D) -> Self {
+    pub fn new(mag: M, coils: A, delay: D, rx: CommandRx) -> Self {
         Self {
             mag,                           // Сохраняем переданный магнитометр.
             coils,                         // Сохраняем драйвер катушек.
@@ -61,6 +66,7 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
             pending_cmd: None,             // Пока нет ожидающих команд.
             dt: None,
             prev_measurement_time: None,
+            rx,
         }
     }
 
