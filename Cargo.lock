@@ -1416,6 +1416,99 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
+name = "sandbox-mcu"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "defmt-test",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-stm32",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-hal-bus",
+ "embedded-io-async 0.7.0",
+ "heapless 0.9.3",
+ "lora-phy",
+ "mmc5983_rs",
+ "panic-probe",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "serde",
+]
+
+[[package]]
+name = "sandbox-pc"
+version = "0.1.0"
+dependencies = [
+ "defmt 1.1.1",
+ "embassy-futures",
+ "embassy-time",
+ "env_logger",
+ "heapless 0.9.3",
+ "log",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "sat-subsystems",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "sandbox-mcu"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.1.1",
+ "defmt-rtt",
+ "defmt-test",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-stm32",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-hal 1.0.0",
+ "embedded-hal-async",
+ "embedded-hal-bus",
+ "embedded-io-async 0.7.0",
+ "heapless 0.9.3",
+ "lora-phy",
+ "mmc5983_rs",
+ "panic-probe",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "serde",
+ "veml6030",
+]
+
+[[package]]
+name = "sandbox-pc"
+version = "0.1.0"
+dependencies = [
+ "defmt 1.1.1",
+ "embassy-futures",
+ "embassy-time",
+ "env_logger",
+ "heapless 0.9.3",
+ "log",
+ "postcard",
+ "sat-core",
+ "sat-drivers",
+ "sat-subsystems",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "sat-core"
 version = "0.1.0"
 dependencies = [
@@ -1447,6 +1540,7 @@ dependencies = [
  "postcard",
  "sat-core",
  "serde",
+ "veml6030",
 ]
 
 [[package]]
@@ -1479,6 +1573,7 @@ dependencies = [
  "defmt 1.1.1",
  "defmt-or-log",
  "embassy-futures",
+ "embassy-sync",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
@@ -1854,6 +1949,17 @@ name = "vcell"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77439c1b53d2303b20d9459b1ade71a83c716e3f9c34f3228c00e6f185d6c002"
+
+[[package]]
+name = "veml6030"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f54ccc98834126d48dcb95c816de847fe3068f68a5d0bdf4cbf07aa032bc69af"
+dependencies = [
+ "embedded-hal 1.0.0",
+ "libm",
+ "maybe-async-cfg",
+]
 
 [[package]]
 name = "void"
