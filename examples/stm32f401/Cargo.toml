@@ -49,4 +49,4 @@ nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
 lora-phy = "3.0.1"
 mmc5983_rs = { version = "0.0.1", features = ["async"] }
 embassy-sync = "0.8.0"
-veml6030 = {version = "1.0.0", features = ["async"}
+veml6030 = {version = "1.0.0", features = ["async"] }
