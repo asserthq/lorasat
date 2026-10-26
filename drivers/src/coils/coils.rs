@@ -119,7 +119,7 @@ where
     type Error = CoilsError;
 
     async fn apply_pwm(&mut self, levels: Vector3<f32>) -> Result<(), Self::Error> {
-        if levels.amax() > 1.0 {
+        if !levels.iter().all(|x| x.is_finite() && x.abs() <= 1.0) {
             Err(CoilsError::LevelOutOfRange)
         } else {
             self.set_x(levels.x)
