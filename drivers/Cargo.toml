@@ -25,4 +25,6 @@ embassy-sync = { version = "0.8.0", features = ["defmt"] }
 embassy-futures = { version = "0.1.2", features = ["defmt"] }
 #sx126x = "0.3.0"
 nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
-veml6030 = "1.0.0"
+veml6030 = { version = "1.0.0", features = ["async"] }
+mmc5983_rs = { version = "0.0.1", features = ["async"] }
+embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f401rc", "unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }

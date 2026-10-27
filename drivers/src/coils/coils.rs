@@ -137,3 +137,47 @@ where
         todo!()
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use nalgebra::Vector3;
+//
+//     fn valid(v: Vector3<f32>) -> bool {
+//         v.iter().all(|x| {
+//             x.is_finite() && *x >= -1.0 && *x <= 1.0
+//         })
+//     }
+//
+//     fn to_percent(level: f32) -> u8 {
+//         (level * 100.0).round().abs() as u8
+//     }
+//
+//     #[test]
+//     fn accepts_valid_values() {
+//         assert!(valid(Vector3::new(0.0, 0.5, -1.0)));
+//         assert!(valid(Vector3::new(-1.0, 1.0, 0.0)));
+//     }
+//
+//     #[test]
+//     fn rejects_values_outside_range() {
+//         assert!(!valid(Vector3::new(1.01, 0.0, 0.0)));
+//         assert!(!valid(Vector3::new(0.0, -1.01, 0.0)));
+//     }
+//
+//     #[test]
+//     fn rejects_nan_and_infinity() {
+//         assert!(!valid(Vector3::new(f32::NAN, 0.0, 0.0)));
+//         assert!(!valid(Vector3::new(
+//             f32::INFINITY, 0.0, 0.0
+//         )));
+//     }
+//
+//     #[test]
+//     fn converts_level_to_pwm_percent() {
+//         assert_eq!(to_percent(0.0), 0);
+//         assert_eq!(to_percent(0.25), 25);
+//         assert_eq!(to_percent(-0.25), 25);
+//         assert_eq!(to_percent(1.0), 100);
+//         assert_eq!(to_percent(-1.0), 100);
+//     }
+// }
