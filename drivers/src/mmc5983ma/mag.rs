@@ -1,3 +1,4 @@
+use embassy_stm32::i2c::I2c;
 use mmc5983_rs::Mmc5983;
 use nalgebra::Vector3;
 
