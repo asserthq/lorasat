@@ -1,0 +1,10 @@
+[package]
+name = "sat-csp"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Small no_std CSP v2 protocol implementation"
+
+[lib]
+
+[dependencies]
