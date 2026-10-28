@@ -26,6 +26,18 @@
 
 Фрагментация SFP будет следующим отдельным этапом. Сначала должны заработать надёжные короткие сообщения. Здесь не реализуются LoRa MAC, маяк, flash, архив, OTA, bitmap ACK и универсальная маршрутизация.
 
+## Текущий согласованный scope
+
+- Этапы 1 и 2 завершены; выполняется этап 3.
+- Полный план RDP ниже остаётся ориентиром, но пользователь ограничил первый профиль одним connection и одним подтверждённым DATA.
+- Завершены: RDP trailer codec и vectors; handshake; один DATA/ACK; retry SYN/DATA; bounded timeout.
+- `send` ждёт ACK. Время поступает явными wrapping millisecond updates без зависимости от executor clock.
+- Следующий отдельный подшаг: close/reset и cleanup отмены.
+- Несколько сообщений в connection и несколько connection slots отложены на будущее.
+- SFP выполняется только после RDP. Wire SFP не смешивается с RDP state machine.
+- MAC/window scheduler — отдельный будущий слой после транспорта. Во время этапа 3 не добавляются гарантированные RF RX windows, логика длительного downlink или одновременная организация RX/TX.
+- 868 MHz и 435 MHz — два отдельных полудуплексных трансивера. Это ограничение будущей интеграции, но не повод связывать RDP с radio driver.
+
 ## Общая проверка после этапа
 
 Агент сам определяет имя package, target компьютера и существующие команды проекта. Требуются:
@@ -275,13 +287,15 @@ Integration test `rdp_messages_with_loss`:
 
 ### Результат этапа
 
-Работающий RDP-профиль для одного connection с окном 1, тест потерь, reference comparison и сохранённый datagram API. Нет SFP и больших блоков. Записать ограничения в STATUS.md, показать проверки и остановиться.
+Целевой полный результат: RDP-профиль для connection с окном 1, тест потерь, reference comparison и сохранённый datagram API. Первый утверждённый профиль ограничен одним connection и одним подтверждённым DATA; дальнейшие сообщения, несколько slots и close выполняются отдельными подшагами. Нет SFP и больших блоков.
 
 ## Первичные ссылки
 
 - [libcsp](https://github.com/libcsp/libcsp) — основной эталон исходников и тестов.
 - [Основы CSP](https://libcsp.github.io/libcsp/basic.html) — обзор; детали сверять с закреплённым commit.
 - [CSP API](https://libcsp.github.io/libcsp/api/csp_h.html) — термины connectionless, Socket и Connection.
-- [RDP source](https://github.com/libcsp/libcsp/blob/develop/src/csp_rdp.c) — ориентир поиска; агент заменяет develop точным commit для рабочих ссылок.
+- [RDP source](https://github.com/libcsp/libcsp/blob/48f7fb0b57f610bf65bab1aa2d1357c3b9722782/src/csp_rdp.c) — точный закреплённый RDP wire format и state machine.
+- [RDP connection fields](https://github.com/libcsp/libcsp/blob/48f7fb0b57f610bf65bab1aa2d1357c3b9722782/src/csp_conn.h) — состояния и sequence fields.
+- [Router integration](https://github.com/libcsp/libcsp/blob/48f7fb0b57f610bf65bab1aa2d1357c3b9722782/src/csp_route.c) — создание/поиск connection и передача RDP packet в transport.
 - [Rust wrapper libcsp](https://docs.rs/libcsp/latest/libcsp/) — необязательный инструмент reference peer, не собственная Rust-реализация транспорта.
 - [csp-tools](https://github.com/daniestevez/csp-tools) — host tools; published codec v1 не использовать как эталон заголовка v2.

@@ -17,7 +17,7 @@ impl<const MTU: usize> Packet<MTU> {
                 actual: MTU,
             });
         }
-        if header.flags() != Flags::NONE {
+        if header.flags() != Flags::NONE && header.flags() != Flags::RDP {
             return Err(Error::UnsupportedFlags(header.flags().bits()));
         }
 
@@ -53,6 +53,10 @@ impl<const MTU: usize> Packet<MTU> {
 
     pub fn payload(&self) -> &[u8] {
         &self.payload[..self.payload_len]
+    }
+
+    pub(crate) fn payload_mut(&mut self) -> &mut [u8] {
+        &mut self.payload[..self.payload_len]
     }
 
     pub const fn encoded_len(&self) -> usize {
