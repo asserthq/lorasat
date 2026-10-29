@@ -1,5 +1,6 @@
 use examples_std::csp_demo::{
-    BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, MTU, RadioBand, SATELLITE_ADDRESS, UdpRadioLink,
+    BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, MTU, RadioBand, SATELLITE_ADDRESS,
+    UdpRadioInterface,
 };
 use sat_csp::{RunnerBuilder, StackResources};
 use tokio::time::{Duration, sleep};
@@ -9,12 +10,13 @@ async fn main() {
     let payload = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "opaque client data: temperature=23".to_owned());
-    let link = UdpRadioLink::bind(RadioBand::Mhz868, CLIENT_ADDRESS, &[SATELLITE_ADDRESS])
-        .await
-        .unwrap();
+    let interface =
+        UdpRadioInterface::bind(RadioBand::Mhz868, CLIENT_ADDRESS, &[SATELLITE_ADDRESS])
+            .await
+            .unwrap();
     let stack = StackResources::<MTU, 2, 1, 2>::new();
 
-    let mut builder = RunnerBuilder::new(CLIENT_ADDRESS, link, &stack).unwrap();
+    let mut builder = RunnerBuilder::new(CLIENT_ADDRESS, interface, &stack).unwrap();
     let mut socket = builder.bind(BEACON_PORT).unwrap();
     let mut runner = builder.build();
 

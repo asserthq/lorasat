@@ -6,7 +6,7 @@ use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::Timer;
-use sat_csp::{Link, RunnerBuilder, StackResources};
+use sat_csp::{CspInterface, RunnerBuilder, StackResources};
 use {defmt_rtt as _, panic_probe as _};
 
 const MTU: usize = 255;
@@ -33,7 +33,7 @@ impl LoopbackLink {
     }
 }
 
-impl Link for LoopbackLink {
+impl CspInterface for LoopbackLink {
     type Error = LoopbackError;
 
     async fn send(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {

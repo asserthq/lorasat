@@ -2,8 +2,8 @@ use std::{future::pending, sync::Arc};
 
 use examples_std::csp_demo::{
     BEACON_INTERVAL_SECONDS, BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, COMMAND_PORT,
-    DUMP_COMMAND, GROUND_ADDRESS, MTU, OpaqueRecord, RadioBand, SATELLITE_ADDRESS, UdpRadioLink,
-    encode_dump, unix_time_seconds,
+    DUMP_COMMAND, GROUND_ADDRESS, MTU, OpaqueRecord, RadioBand, SATELLITE_ADDRESS,
+    UdpRadioInterface, encode_dump, unix_time_seconds,
 };
 use sat_csp::{MAX_NODE_ID, RdpConfig, RdpResources, RunnerBuilder, StackResources};
 use tokio::{
@@ -13,26 +13,28 @@ use tokio::{
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let link_435 = UdpRadioLink::bind(RadioBand::Mhz435, SATELLITE_ADDRESS, &[GROUND_ADDRESS])
-        .await
-        .unwrap();
-    let link_868 = UdpRadioLink::bind(RadioBand::Mhz868, SATELLITE_ADDRESS, &[CLIENT_ADDRESS])
-        .await
-        .unwrap();
+    let interface_435 =
+        UdpRadioInterface::bind(RadioBand::Mhz435, SATELLITE_ADDRESS, &[GROUND_ADDRESS])
+            .await
+            .unwrap();
+    let interface_868 =
+        UdpRadioInterface::bind(RadioBand::Mhz868, SATELLITE_ADDRESS, &[CLIENT_ADDRESS])
+            .await
+            .unwrap();
 
     let stack_435 = StackResources::<MTU, 4, 1, 4>::new();
     let stack_868 = StackResources::<MTU, 4, 2, 4>::new();
     let rdp_435 = RdpResources::<MTU>::new();
     rdp_435.update_time(0);
 
-    let mut builder_435 = RunnerBuilder::new(SATELLITE_ADDRESS, link_435, &stack_435).unwrap();
+    let mut builder_435 = RunnerBuilder::new(SATELLITE_ADDRESS, interface_435, &stack_435).unwrap();
     let beacon_435 = builder_435.bind(BEACON_PORT).unwrap();
     let command_listener = builder_435
         .listen_rdp(COMMAND_PORT, &rdp_435, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_435 = builder_435.build();
 
-    let mut builder_868 = RunnerBuilder::new(SATELLITE_ADDRESS, link_868, &stack_868).unwrap();
+    let mut builder_868 = RunnerBuilder::new(SATELLITE_ADDRESS, interface_868, &stack_868).unwrap();
     let beacon_868 = builder_868.bind(BEACON_PORT).unwrap();
     let mut client_data = builder_868.bind(CLIENT_DATA_PORT).unwrap();
     let mut runner_868 = builder_868.build();

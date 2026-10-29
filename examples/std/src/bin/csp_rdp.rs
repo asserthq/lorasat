@@ -1,4 +1,4 @@
-use sat_csp::{Link, RdpConfig, RdpResources, RunnerBuilder, StackResources};
+use sat_csp::{CspInterface, RdpConfig, RdpResources, RunnerBuilder, StackResources};
 use tokio::{sync::mpsc, time::Duration};
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl MemoryLink {
     }
 }
 
-impl Link for MemoryLink {
+impl CspInterface for MemoryLink {
     type Error = MemoryLinkError;
 
     async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {

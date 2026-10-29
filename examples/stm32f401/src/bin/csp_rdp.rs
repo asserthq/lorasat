@@ -9,7 +9,7 @@ use embassy_futures::{
 };
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::Timer;
-use sat_csp::{Link, RdpConfig, RdpResources, RunnerBuilder, StackResources};
+use sat_csp::{CspInterface, RdpConfig, RdpResources, RunnerBuilder, StackResources};
 use {defmt_rtt as _, panic_probe as _};
 
 const MTU: usize = 255;
@@ -29,7 +29,7 @@ struct MemoryLink<'a> {
     incoming: &'a Signal<CriticalSectionRawMutex, Frame>,
 }
 
-impl Link for MemoryLink<'_> {
+impl CspInterface for MemoryLink<'_> {
     type Error = MemoryLinkError;
 
     async fn send(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {

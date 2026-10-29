@@ -1518,6 +1518,7 @@ dependencies = [
  "nalgebra",
  "postcard",
  "sat-core",
+ "sat-csp",
  "serde",
 ]
 
@@ -1540,6 +1541,7 @@ dependencies = [
  "panic-probe",
  "postcard",
  "sat-core",
+ "sat-csp",
  "sat-drivers",
  "serde",
 ]

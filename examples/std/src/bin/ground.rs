@@ -2,21 +2,22 @@ use std::io::Write;
 
 use examples_std::csp_demo::{
     BEACON_PORT, COMMAND_PORT, DUMP_COMMAND, GROUND_ADDRESS, MTU, RadioBand, SATELLITE_ADDRESS,
-    UdpRadioLink, decode_dump,
+    UdpRadioInterface, decode_dump,
 };
 use sat_csp::{RdpConfig, RdpResources, RunnerBuilder, StackResources};
 use tokio::time::{Duration, interval};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let link = UdpRadioLink::bind(RadioBand::Mhz435, GROUND_ADDRESS, &[SATELLITE_ADDRESS])
-        .await
-        .unwrap();
+    let interface =
+        UdpRadioInterface::bind(RadioBand::Mhz435, GROUND_ADDRESS, &[SATELLITE_ADDRESS])
+            .await
+            .unwrap();
     let stack = StackResources::<MTU, 4, 1, 4>::new();
     let rdp = RdpResources::<MTU>::new();
     rdp.update_time(0);
 
-    let mut builder = RunnerBuilder::new(GROUND_ADDRESS, link, &stack).unwrap();
+    let mut builder = RunnerBuilder::new(GROUND_ADDRESS, interface, &stack).unwrap();
     let mut beacon_socket = builder.bind(BEACON_PORT).unwrap();
     let client = builder.rdp_client(&rdp, RdpConfig::new(0x1000)).unwrap();
     let mut runner = builder.build();

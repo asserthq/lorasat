@@ -8,6 +8,7 @@ version = "0.1.0"
 
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
+sat_csp = { package = "sat-csp", path = "../csp" }
 
 defmt = "1.0.1"
 embassy-time = "0.5.1"

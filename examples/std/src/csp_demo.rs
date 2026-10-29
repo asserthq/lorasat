@@ -1,6 +1,6 @@
 use std::{io, net::SocketAddr};
 
-use sat_csp::Link;
+use sat_csp::CspInterface;
 use tokio::net::UdpSocket;
 
 pub const MTU: usize = 255;
@@ -35,12 +35,12 @@ impl RadioBand {
     }
 }
 
-pub struct UdpRadioLink {
+pub struct UdpRadioInterface {
     socket: UdpSocket,
     peers: Vec<SocketAddr>,
 }
 
-impl UdpRadioLink {
+impl UdpRadioInterface {
     pub async fn bind(band: RadioBand, local: u16, peers: &[u16]) -> io::Result<Self> {
         let socket = UdpSocket::bind(socket_address(band, local)).await?;
         let peers = peers
@@ -52,7 +52,7 @@ impl UdpRadioLink {
     }
 }
 
-impl Link for UdpRadioLink {
+impl CspInterface for UdpRadioInterface {
     type Error = io::Error;
 
     async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {

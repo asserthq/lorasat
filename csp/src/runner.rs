@@ -8,9 +8,9 @@ use embassy_sync::{
 
 use crate::rdp::{RdpBinding, RdpCommand, RdpEngine};
 use crate::{
-    BindError, Error, Flags, HEADER_SIZE, Link, MAX_NODE_ID, MAX_PORT, Packet, RDP_CLIENT_PORT,
-    RDP_SYN_OPTIONS_SIZE, RDP_TRAILER_SIZE, RdpClient, RdpConfig, RdpListener, RdpResources,
-    Socket,
+    BindError, CspInterface, Error, Flags, HEADER_SIZE, MAX_NODE_ID, MAX_PORT, Packet,
+    RDP_CLIENT_PORT, RDP_SYN_OPTIONS_SIZE, RDP_TRAILER_SIZE, RdpClient, RdpConfig, RdpListener,
+    RdpResources, Socket,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -26,7 +26,7 @@ pub struct RunnerStats {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum RunnerError<E> {
-    Link(E),
+    Interface(E),
     Codec(Error),
 }
 
@@ -46,7 +46,7 @@ struct RdpSetup<'a, const MTU: usize> {
 impl<E: fmt::Display> fmt::Display for RunnerError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Link(error) => write!(formatter, "link error: {error}"),
+            Self::Interface(error) => write!(formatter, "interface error: {error}"),
             Self::Codec(error) => write!(formatter, "codec error: {error}"),
         }
     }
@@ -83,25 +83,25 @@ impl<const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const RX_DEP
 
 pub struct RunnerBuilder<
     'a,
-    L,
+    I,
     const MTU: usize,
     const TX_DEPTH: usize,
     const SOCKETS: usize,
     const RX_DEPTH: usize,
 > {
     local_address: u16,
-    link: L,
+    interface: I,
     resources: &'a StackResources<MTU, TX_DEPTH, SOCKETS, RX_DEPTH>,
     ports: [Option<u8>; SOCKETS],
     rdp: Option<RdpSetup<'a, MTU>>,
 }
 
-impl<'a, L, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const RX_DEPTH: usize>
-    RunnerBuilder<'a, L, MTU, TX_DEPTH, SOCKETS, RX_DEPTH>
+impl<'a, I, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const RX_DEPTH: usize>
+    RunnerBuilder<'a, I, MTU, TX_DEPTH, SOCKETS, RX_DEPTH>
 {
     pub fn new(
         local_address: u16,
-        link: L,
+        interface: I,
         resources: &'a StackResources<MTU, TX_DEPTH, SOCKETS, RX_DEPTH>,
     ) -> Result<Self, Error> {
         if local_address > MAX_NODE_ID {
@@ -116,7 +116,7 @@ impl<'a, L, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const
 
         Ok(Self {
             local_address,
-            link,
+            interface,
             resources,
             ports: [None; SOCKETS],
             rdp: None,
@@ -200,10 +200,10 @@ impl<'a, L, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const
         })
     }
 
-    pub fn build(self) -> Runner<'a, L, MTU, TX_DEPTH, SOCKETS, RX_DEPTH> {
+    pub fn build(self) -> Runner<'a, I, MTU, TX_DEPTH, SOCKETS, RX_DEPTH> {
         Runner {
             local_address: self.local_address,
-            link: self.link,
+            interface: self.interface,
             resources: self.resources,
             ports: self.ports,
             stats: RunnerStats::default(),
@@ -216,24 +216,24 @@ impl<'a, L, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const
 
 pub struct Runner<
     'a,
-    L,
+    I,
     const MTU: usize,
     const TX_DEPTH: usize,
     const SOCKETS: usize,
     const RX_DEPTH: usize,
 > {
     pub(crate) local_address: u16,
-    pub(crate) link: L,
+    pub(crate) interface: I,
     pub(crate) resources: &'a StackResources<MTU, TX_DEPTH, SOCKETS, RX_DEPTH>,
     pub(crate) ports: [Option<u8>; SOCKETS],
     stats: RunnerStats,
     rdp: Option<RdpEngine<'a, MTU>>,
 }
 
-impl<'a, L, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const RX_DEPTH: usize>
-    Runner<'a, L, MTU, TX_DEPTH, SOCKETS, RX_DEPTH>
+impl<'a, I, const MTU: usize, const TX_DEPTH: usize, const SOCKETS: usize, const RX_DEPTH: usize>
+    Runner<'a, I, MTU, TX_DEPTH, SOCKETS, RX_DEPTH>
 where
-    L: Link,
+    I: CspInterface,
 {
     pub const fn local_address(&self) -> u16 {
         self.local_address
@@ -243,24 +243,24 @@ where
         self.stats
     }
 
-    /// Gives the supervisor access to link-specific recovery or diagnostics.
+    /// Gives the supervisor access to interface-specific recovery or diagnostics.
     ///
     /// Call this only while [`Self::run`] is not being polled.
-    pub fn link_mut(&mut self) -> &mut L {
-        &mut self.link
+    pub fn interface_mut(&mut self) -> &mut I {
+        &mut self.interface
     }
 
-    pub async fn run(&mut self) -> Result<(), RunnerError<L::Error>> {
+    pub async fn run(&mut self) -> Result<(), RunnerError<I::Error>> {
         let mut frame = [0; MTU];
         let mut prefer_incoming = false;
         let mut rdp_priority = 3_u8;
 
         loop {
-            let event: RunnerEvent<Packet<MTU>, L::Error, RdpCommand<MTU>> =
+            let event: RunnerEvent<Packet<MTU>, I::Error, RdpCommand<MTU>> =
                 if let Some(rdp) = self.rdp.as_ref() {
                     let event = match rdp_priority {
                         0 => match select4(
-                            self.link.receive(&mut frame),
+                            self.interface.receive(&mut frame),
                             self.resources.tx.receive(),
                             rdp.next_command(),
                             rdp.next_time_update(),
@@ -276,7 +276,7 @@ where
                             self.resources.tx.receive(),
                             rdp.next_command(),
                             rdp.next_time_update(),
-                            self.link.receive(&mut frame),
+                            self.interface.receive(&mut frame),
                         )
                         .await
                         {
@@ -288,7 +288,7 @@ where
                         2 => match select4(
                             rdp.next_command(),
                             rdp.next_time_update(),
-                            self.link.receive(&mut frame),
+                            self.interface.receive(&mut frame),
                             self.resources.tx.receive(),
                         )
                         .await
@@ -300,7 +300,7 @@ where
                         },
                         _ => match select4(
                             rdp.next_time_update(),
-                            self.link.receive(&mut frame),
+                            self.interface.receive(&mut frame),
                             self.resources.tx.receive(),
                             rdp.next_command(),
                         )
@@ -315,12 +315,22 @@ where
                     rdp_priority = (rdp_priority + 1) % 4;
                     event
                 } else if prefer_incoming {
-                    match select(self.link.receive(&mut frame), self.resources.tx.receive()).await {
+                    match select(
+                        self.interface.receive(&mut frame),
+                        self.resources.tx.receive(),
+                    )
+                    .await
+                    {
                         Either::First(result) => RunnerEvent::Incoming(result),
                         Either::Second(packet) => RunnerEvent::Outgoing(packet),
                     }
                 } else {
-                    match select(self.resources.tx.receive(), self.link.receive(&mut frame)).await {
+                    match select(
+                        self.resources.tx.receive(),
+                        self.interface.receive(&mut frame),
+                    )
+                    .await
+                    {
                         Either::First(packet) => RunnerEvent::Outgoing(packet),
                         Either::Second(result) => RunnerEvent::Incoming(result),
                     }
@@ -332,7 +342,7 @@ where
                     prefer_incoming = true;
                 }
                 RunnerEvent::Incoming(result) => {
-                    let length = result.map_err(RunnerError::Link)?;
+                    let length = result.map_err(RunnerError::Interface)?;
                     self.stats.received_frames = self.stats.received_frames.saturating_add(1);
                     prefer_incoming = false;
                     if length > MTU {
@@ -375,12 +385,12 @@ where
         &mut self,
         packet: Packet<MTU>,
         frame: &mut [u8; MTU],
-    ) -> Result<(), RunnerError<L::Error>> {
+    ) -> Result<(), RunnerError<I::Error>> {
         let length = packet.encode(frame).map_err(RunnerError::Codec)?;
-        self.link
+        self.interface
             .send(&frame[..length])
             .await
-            .map_err(RunnerError::Link)?;
+            .map_err(RunnerError::Interface)?;
         self.stats.transmitted_frames = self.stats.transmitted_frames.saturating_add(1);
         Ok(())
     }

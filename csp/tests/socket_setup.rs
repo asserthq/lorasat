@@ -1,12 +1,12 @@
 use core::future::pending;
 
 use sat_csp::{
-    BindError, Error, Link, MAX_NODE_ID, MAX_PORT, RunnerBuilder, SendError, StackResources,
+    BindError, CspInterface, Error, MAX_NODE_ID, MAX_PORT, RunnerBuilder, SendError, StackResources,
 };
 
 struct NeverLink;
 
-impl Link for NeverLink {
+impl CspInterface for NeverLink {
     type Error = ();
 
     async fn send(&mut self, _frame: &[u8]) -> Result<(), Self::Error> {

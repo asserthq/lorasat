@@ -44,13 +44,15 @@ so changing an encoder does not spread serialization concerns through the stack.
 - `Header` and `Packet` are the owned protocol values.
 - `wire` is the CSP v2 header codec.
 - `Socket` provides bounded connectionless send/receive queues.
-- `Runner` owns one `Link`, packet routing, RX/TX selection, and counters.
+- `Runner` owns one `CspInterface`, packet routing, RX/TX selection, and counters.
 - `StackResources` provides datagram queue storage statically.
 - `RdpResources` provides one RDP state-machine endpoint and its static queues.
-- `Link` is the only hardware/carrier boundary and transfers complete frames.
+- `CspInterface` is the CSP packet/carrier boundary and transfers complete frames.
 
 The crate does not depend on satellite logic, firmware, or radio-driver crates.
-A firmware adapter implements `Link` for its concrete transceiver.
+The lower crate implements `CspInterface` for a concrete carrier. `sat-drivers`
+currently implements it directly for the LoRa radios. A future MAC can instead
+own a radio and implement the same trait, without changes to CSP or applications.
 
 ## Datagram stack
 
@@ -58,7 +60,7 @@ Application-owned resources define all queue memory at compile time:
 
 ```rust,ignore
 let resources = StackResources::<255, 2, 2, 2>::new();
-let mut builder = RunnerBuilder::new(local_address, link, &resources)?;
+let mut builder = RunnerBuilder::new(local_address, interface, &resources)?;
 let mut command_socket = builder.bind(10)?;
 let _telemetry_socket = builder.bind(20)?;
 let mut runner = builder.build();
@@ -89,7 +91,7 @@ Client setup:
 ```rust,ignore
 let rdp = RdpResources::<255>::new();
 rdp.update_time(0);
-let mut builder = RunnerBuilder::new(local_address, link, &stack_resources)?;
+let mut builder = RunnerBuilder::new(local_address, interface, &stack_resources)?;
 let client = builder.rdp_client(&rdp, RdpConfig::new(initial_sequence))?;
 let mut runner = builder.build();
 
@@ -133,18 +135,18 @@ Current deliberate limits:
 - cancelling `connect` or `send` does not yet clean protocol state;
 - application supplies the initial sequence number and monotonic clock.
 
-`Link::receive` must be cancellation-safe. Runner cancels pending receive when
-a queued TX packet must use a half-duplex link. The next Link operation must
-restore the required radio mode.
+`CspInterface::receive` must be cancellation-safe. Runner cancels pending receive
+when a queued TX packet must use a half-duplex interface. The next interface
+operation must restore the required radio mode.
 
-### Link errors
+### Interface errors
 
-Expected per-frame conditions belong inside Link. For example, an RX timeout,
-invalid radio CRC, or unrelated frame can be discarded before `receive`
-returns. `Err` means the Link cannot currently continue: SPI failure, radio
-state failure, disconnected host carrier, or similar fault.
+Expected per-frame conditions belong inside `CspInterface`. For example, an RX
+timeout, invalid radio CRC, or unrelated frame can be discarded before
+`receive` returns. `Err` means the interface cannot currently continue: SPI
+failure, radio state failure, disconnected host carrier, or similar fault.
 
-Runner returns `RunnerError::Link` instead of silently retrying because a blind
+Runner returns `RunnerError::Interface` instead of silently retrying because a blind
 retry can create a busy loop, duplicate a datagram, or use a radio left in an
 unknown mode. The packet being transmitted is already removed from the TX
 queue and is considered lost.
@@ -154,29 +156,35 @@ The task supervising Runner chooses recovery:
 ```rust,ignore
 loop {
     if let Err(error) = runner.run().await {
-        log_link_error(&error);
-        runner.link_mut().recover().await?; // concrete Link-specific method
+        log_interface_error(&error);
+        runner.interface_mut().recover().await?; // concrete Interface method
     }
 }
 ```
 
-For a transient Link implementation, recovery may be internal and the next
-`runner.run()` call may be enough. `link_mut` exists for hardware-specific
-reset or diagnostics while Runner is stopped.
+For a transient `CspInterface` implementation, recovery may be internal and the
+next `runner.run()` call may be enough. `interface_mut` exists for
+hardware-specific reset or diagnostics while Runner is stopped.
 
 ### Radio integration limits
 
-The planned vehicle has separate 868 MHz and 435 MHz half-duplex transceivers.
-The current Runner alternates software RX/TX preference when both futures are
-ready, but this does not create a guaranteed RF receive window. A continuously
-non-empty TX queue may still prevent timely command reception depending on the
-Link and airtime.
+libcsp does not require an interface to be full-duplex and does not provide a
+generic receive-while-transmitting guarantee. Each interface driver determines
+its own concurrency, queues, and medium access behavior.
 
-No MAC/window scheduler is implemented yet. Fixed command receive windows,
-beacon scheduling, and interleaving a long 435 MHz downlink are future policy
-above the packet Link. SFP fragmentation is also deferred until the minimal RDP
-transport works. RDP, SFP, HMAC, and CRC32 in libcsp use trailers appended after
-application data; each layer removes its own trailer without moving payload.
+The planned vehicle has separate 868 MHz and 435 MHz half-duplex transceivers.
+The current Runner owns one interface mutably and alternates software RX/TX
+preference. Direct `Radio1262: Interface` therefore performs one radio operation
+at a time and does not create a guaranteed RF receive window. A continuously
+non-empty TX queue may still delay command reception depending on airtime.
+
+No MAC/window scheduler is implemented yet. A future MAC worker may own the
+radio, expose TX/RX queues through `CspInterface`, and enforce receive windows,
+duty cycle, backoff, or priority. Fixed command windows, beacon scheduling, and
+interleaving a long 435 MHz downlink belong there. SFP fragmentation remains a
+separate CSP service. RDP, SFP, HMAC, and CRC32 in libcsp use trailers appended
+after application data; each layer removes its own trailer without moving
+payload.
 
 `CriticalSectionRawMutex` protects channels. An embedded application must
 provide its platform critical-section implementation; host tests use the

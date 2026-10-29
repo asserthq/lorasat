@@ -12,6 +12,7 @@ harness = false
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 sat_drivers = { package = "sat-drivers", path = "../drivers" }
+sat_csp = { package = "sat-csp", path = "../csp" }
 
 embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f401rc", "unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }
 embassy-executor = { version = "0.10.0", features = ["platform-cortex-m", "executor-thread", "defmt"] }

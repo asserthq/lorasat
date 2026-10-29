@@ -9,7 +9,7 @@ use futures::{
     SinkExt, StreamExt,
     channel::mpsc::{self, Receiver, Sender, UnboundedReceiver, UnboundedSender},
 };
-use sat_csp::Link;
+use sat_csp::CspInterface;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FakeLinkError {
@@ -132,7 +132,7 @@ impl FakeLinkControl {
     }
 }
 
-impl Link for FakeLink {
+impl CspInterface for FakeLink {
     type Error = FakeLinkError;
 
     async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {
