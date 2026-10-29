@@ -1,10 +1,11 @@
 pub mod address;
+pub mod datagram;
 pub mod endpoint;
-pub mod link;
 pub mod phy;
-pub mod transport;
+pub mod session;
 
 pub use address::Address;
-pub use link::LinkLayer;
+pub use datagram::{DatagramMetadata, DatagramSocket};
+pub use endpoint::Endpoint;
 pub use phy::PhyLayer;
-pub use transport::{Socket, TransportEvent, TransportLayer};
+pub use session::{ReliableMessageSession, SessionConnector, SessionListener};
