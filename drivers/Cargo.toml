@@ -6,6 +6,10 @@ version = "0.1.0"
 
 [lib]
 
+[features]
+default = []
+legacy-protocol = []
+
 [dependencies]
 sat_core = { package = "sat-core", path = "../core" }
 sat_csp = { package = "sat-csp", path = "../csp" }
