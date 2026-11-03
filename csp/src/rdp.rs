@@ -167,7 +167,7 @@ impl<'a, const MTU: usize> RdpListener<'a, MTU> {
     }
 
     /// Accepts the only connection supported by the initial RDP profile.
-    pub async fn accept(self) -> Result<RdpConnection<'a, MTU>, RdpError> {
+    pub async fn accept(&mut self) -> Result<RdpConnection<'a, MTU>, RdpError> {
         let info = self.resources.connections.receive().await?;
         Ok(RdpConnection::new(self.resources, info))
     }

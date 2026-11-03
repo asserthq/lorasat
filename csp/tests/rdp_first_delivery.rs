@@ -25,7 +25,7 @@ fn first_rdp_connection_confirms_one_delivery() {
     let mut runner_a = builder_a.build();
 
     let mut builder_b = RunnerBuilder::new(2, link_b, &stack_b).unwrap();
-    let listener = builder_b
+    let mut listener = builder_b
         .listen_rdp(20, &rdp_b, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_b = builder_b.build();
@@ -147,7 +147,7 @@ fn lost_ack_retries_data_without_duplicate_delivery() {
     let mut runner_a = builder_a.build();
 
     let mut builder_b = RunnerBuilder::new(2, link_b, &stack_b).unwrap();
-    let listener = builder_b
+    let mut listener = builder_b
         .listen_rdp(20, &rdp_b, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_b = builder_b.build();
@@ -202,7 +202,7 @@ fn one_message_each_way_uses_same_connection() {
     let mut runner_a = builder_a.build();
 
     let mut builder_b = RunnerBuilder::new(2, link_b, &stack_b).unwrap();
-    let listener = builder_b
+    let mut listener = builder_b
         .listen_rdp(20, &rdp_b, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_b = builder_b.build();
@@ -251,7 +251,7 @@ fn data_completes_handshake_when_final_ack_is_lost() {
     let mut runner_a = builder_a.build();
 
     let mut builder_b = RunnerBuilder::new(2, link_b, &stack_b).unwrap();
-    let listener = builder_b
+    let mut listener = builder_b
         .listen_rdp(20, &rdp_b, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_b = builder_b.build();
@@ -303,7 +303,7 @@ fn lost_syn_is_retried() {
     let mut runner_a = builder_a.build();
 
     let mut builder_b = RunnerBuilder::new(2, link_b, &stack_b).unwrap();
-    let listener = builder_b
+    let mut listener = builder_b
         .listen_rdp(20, &rdp_b, RdpConfig::new(0x2000))
         .unwrap();
     let mut runner_b = builder_b.build();

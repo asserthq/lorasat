@@ -136,7 +136,7 @@ async fn main(_spawner: Spawner) {
 
     let mut csp_builder_433 = RunnerBuilder::new(SATELLITE_ADDRESS, radio_433, &stack_433).unwrap();
     let beacon_433_socket = csp_builder_433.bind(BEACON_PORT).unwrap();
-    let gs_cmd_listener = csp_builder_433
+    let mut gs_cmd_listener = csp_builder_433
         .listen_rdp(COMMAND_PORT, &rdp_433, RdpConfig::new(0x2000))
         .unwrap();
     let mut csp_runner_433 = csp_builder_433.build();

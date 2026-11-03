@@ -1,7 +1,12 @@
-use std::{io, net::SocketAddr};
-
-use sat_csp::CspInterface;
-use tokio::net::UdpSocket;
+use sat_core::comm::{
+    Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableMessageSession, SessionListener,
+    address::BROADCAST_ADDRESS,
+};
+use sat_csp::{
+    Datagram, MAX_NODE_ID, MAX_PORT, RdpConnection, RdpError, RdpListener, RdpMessage,
+    RdpResources, SendError, Socket,
+};
+use tokio::time::{Duration, interval};
 
 pub const MTU: usize = 255;
 pub const SATELLITE_ADDRESS: u16 = 1;
@@ -20,56 +25,159 @@ const BEACON_SIZE: usize = 13;
 const DUMP_VERSION: u8 = 1;
 const RDP_APPLICATION_MAX: usize = MTU - sat_csp::HEADER_SIZE - sat_csp::RDP_TRAILER_SIZE;
 
-#[derive(Clone, Copy, Debug)]
-pub enum RadioBand {
-    Mhz435,
-    Mhz868,
+#[derive(Debug)]
+pub enum CspDatagramError {
+    InvalidAddress(Address),
+    InvalidPort(u8),
+    BufferTooSmall { required: usize, available: usize },
+    Send(SendError),
 }
 
-impl RadioBand {
-    const fn port_base(self) -> u16 {
-        match self {
-            Self::Mhz435 => 14_350,
-            Self::Mhz868 => 18_680,
+pub struct CspDatagramSocket<'a, const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> {
+    socket: Socket<'a, MTU, TX_DEPTH, RX_DEPTH>,
+    pending: Option<Datagram<MTU>>,
+}
+
+impl<'a, const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize>
+    CspDatagramSocket<'a, MTU, TX_DEPTH, RX_DEPTH>
+{
+    pub const fn new(socket: Socket<'a, MTU, TX_DEPTH, RX_DEPTH>) -> Self {
+        Self {
+            socket,
+            pending: None,
         }
     }
 }
 
-pub struct UdpRadioInterface {
-    socket: UdpSocket,
-    peers: Vec<SocketAddr>,
-}
+impl<const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> DatagramSocket
+    for CspDatagramSocket<'_, MTU, TX_DEPTH, RX_DEPTH>
+{
+    type Error = CspDatagramError;
 
-impl UdpRadioInterface {
-    pub async fn bind(band: RadioBand, local: u16, peers: &[u16]) -> io::Result<Self> {
-        let socket = UdpSocket::bind(socket_address(band, local)).await?;
-        let peers = peers
-            .iter()
-            .copied()
-            .map(|peer| socket_address(band, peer))
-            .collect();
-        Ok(Self { socket, peers })
-    }
-}
-
-impl CspInterface for UdpRadioInterface {
-    type Error = io::Error;
-
-    async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {
-        for peer in &self.peers {
-            self.socket.send_to(frame, peer).await?;
+    async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error> {
+        let address = if destination.addr() == BROADCAST_ADDRESS {
+            MAX_NODE_ID
+        } else {
+            let address = u16::try_from(destination.addr().0)
+                .map_err(|_| CspDatagramError::InvalidAddress(destination.addr()))?;
+            if address > MAX_NODE_ID {
+                return Err(CspDatagramError::InvalidAddress(destination.addr()));
+            }
+            address
+        };
+        if destination.port() > MAX_PORT {
+            return Err(CspDatagramError::InvalidPort(destination.port()));
         }
-        Ok(())
+
+        self.socket
+            .send_to(address, destination.port(), payload)
+            .await
+            .map_err(CspDatagramError::Send)
     }
 
-    async fn receive(&mut self, frame: &mut [u8]) -> Result<usize, Self::Error> {
-        let (length, _) = self.socket.recv_from(frame).await?;
+    async fn recv_from(&mut self, buffer: &mut [u8]) -> Result<DatagramMetadata, Self::Error> {
+        let datagram = match self.pending.take() {
+            Some(datagram) => datagram,
+            None => self.socket.recv_from().await,
+        };
+        let length = datagram.payload().len();
+        if length > buffer.len() {
+            self.pending = Some(datagram);
+            return Err(CspDatagramError::BufferTooSmall {
+                required: length,
+                available: buffer.len(),
+            });
+        }
+
+        buffer[..length].copy_from_slice(datagram.payload());
+        Ok(DatagramMetadata::new(
+            Endpoint::new(
+                Address(u32::from(datagram.source())),
+                datagram.source_port(),
+            ),
+            length,
+        ))
+    }
+}
+
+#[derive(Debug)]
+pub enum CspRdpSessionError {
+    BufferTooSmall { required: usize, available: usize },
+    Rdp(RdpError),
+}
+
+pub struct CspRdpSession<'a, const MTU: usize> {
+    connection: RdpConnection<'a, MTU>,
+    pending: Option<RdpMessage<MTU>>,
+}
+
+impl<const MTU: usize> ReliableMessageSession for CspRdpSession<'_, MTU> {
+    type Error = CspRdpSessionError;
+
+    fn peer(&self) -> Endpoint {
+        Endpoint::new(
+            Address(u32::from(self.connection.peer_address())),
+            self.connection.peer_port(),
+        )
+    }
+
+    async fn send(&mut self, message: &[u8]) -> Result<(), Self::Error> {
+        self.connection
+            .send(message)
+            .await
+            .map_err(CspRdpSessionError::Rdp)
+    }
+
+    async fn recv(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
+        let message = match self.pending.take() {
+            Some(message) => message,
+            None => self.connection.recv().await,
+        };
+        let length = message.payload().len();
+        if length > buffer.len() {
+            self.pending = Some(message);
+            return Err(CspRdpSessionError::BufferTooSmall {
+                required: length,
+                available: buffer.len(),
+            });
+        }
+
+        buffer[..length].copy_from_slice(message.payload());
         Ok(length)
     }
 }
 
-fn socket_address(band: RadioBand, node: u16) -> SocketAddr {
-    SocketAddr::from(([127, 0, 0, 1], band.port_base() + node))
+pub struct CspRdpListener<'a, const MTU: usize> {
+    listener: RdpListener<'a, MTU>,
+}
+
+impl<'a, const MTU: usize> CspRdpListener<'a, MTU> {
+    pub const fn new(listener: RdpListener<'a, MTU>) -> Self {
+        Self { listener }
+    }
+}
+
+impl<'a, const MTU: usize> SessionListener for CspRdpListener<'a, MTU> {
+    type Error = RdpError;
+    type Session = CspRdpSession<'a, MTU>;
+
+    async fn accept(&mut self) -> Result<Self::Session, Self::Error> {
+        let connection = self.listener.accept().await?;
+        Ok(CspRdpSession {
+            connection,
+            pending: None,
+        })
+    }
+}
+
+pub async fn run_rdp_clock<const MTU: usize>(resources: &RdpResources<MTU>) -> ! {
+    let mut now_ms = 0_u32;
+    let mut ticks = interval(Duration::from_millis(10));
+    loop {
+        ticks.tick().await;
+        now_ms = now_ms.wrapping_add(10);
+        resources.update_time(now_ms);
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

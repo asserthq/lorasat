@@ -1,18 +1,20 @@
 use std::io::Write;
 
-use examples_std::csp_demo::{
-    BEACON_PORT, COMMAND_PORT, DUMP_COMMAND, GROUND_ADDRESS, MTU, RadioBand, SATELLITE_ADDRESS,
-    UdpRadioInterface, decode_dump,
+use examples_std::{
+    csp_demo::{
+        BEACON_PORT, COMMAND_PORT, DUMP_COMMAND, GROUND_ADDRESS, MTU, SATELLITE_ADDRESS,
+        decode_dump,
+    },
+    mock::{RadioBand, UdpCspInterface},
 };
 use sat_csp::{RdpConfig, RdpResources, RunnerBuilder, StackResources};
 use tokio::time::{Duration, interval};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    let interface =
-        UdpRadioInterface::bind(RadioBand::Mhz435, GROUND_ADDRESS, &[SATELLITE_ADDRESS])
-            .await
-            .unwrap();
+    let interface = UdpCspInterface::bind(RadioBand::Mhz435, GROUND_ADDRESS, &[SATELLITE_ADDRESS])
+        .await
+        .unwrap();
     let stack = StackResources::<MTU, 4, 1, 4>::new();
     let rdp = RdpResources::<MTU>::new();
     rdp.update_time(0);

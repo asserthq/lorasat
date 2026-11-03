@@ -70,7 +70,7 @@ async fn main() {
     let mut ground_runner = ground_builder.build();
 
     let mut satellite_builder = RunnerBuilder::new(2, link_satellite, &stack_satellite).unwrap();
-    let listener = satellite_builder
+    let mut listener = satellite_builder
         .listen_rdp(20, &rdp_satellite, RdpConfig::new(0x2000))
         .unwrap();
     let mut satellite_runner = satellite_builder.build();
