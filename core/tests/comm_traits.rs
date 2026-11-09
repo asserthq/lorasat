@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use sat_core::comm::{Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableMessageSession};
+use sat_core::comm::{Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession};
 
 fn run_ready<F: Future>(future: F) -> F::Output {
     let mut future = pin!(future);
@@ -71,7 +71,7 @@ struct MockSession {
     inbound: Option<&'static [u8]>,
 }
 
-impl ReliableMessageSession for MockSession {
+impl ReliableSession for MockSession {
     type Error = MockError;
 
     fn peer(&self) -> Endpoint {

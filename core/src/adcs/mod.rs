@@ -1,4 +1,3 @@
-pub mod adcs;
 pub mod bdot;
 pub mod coils;
 pub mod command;
@@ -6,7 +5,7 @@ pub mod event;
 pub mod gyro;
 pub mod mag;
 pub mod mode;
-pub mod sunsensor;
+pub mod sun_sensor;
 
 pub use adcs::AdcSystem;
 pub use bdot::BdotAlgorithm;

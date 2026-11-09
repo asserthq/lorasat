@@ -13,7 +13,7 @@ use super::Endpoint;
 /// message that does not fit. It must also be cancellation-safe: dropping a
 /// pending receive future must not consume a message.
 #[allow(async_fn_in_trait)]
-pub trait ReliableMessageSession {
+pub trait ReliableSession {
     type Error: Debug;
 
     fn peer(&self) -> Endpoint;
@@ -30,7 +30,7 @@ pub trait ReliableMessageSession {
 #[allow(async_fn_in_trait)]
 pub trait SessionListener {
     type Error: Debug;
-    type Session: ReliableMessageSession;
+    type Session: ReliableSession;
 
     async fn accept(&mut self) -> Result<Self::Session, Self::Error>;
 }
@@ -39,7 +39,7 @@ pub trait SessionListener {
 #[allow(async_fn_in_trait)]
 pub trait SessionConnector {
     type Error: Debug;
-    type Session: ReliableMessageSession;
+    type Session: ReliableSession;
 
     async fn connect(&mut self, peer: Endpoint) -> Result<Self::Session, Self::Error>;
 }
