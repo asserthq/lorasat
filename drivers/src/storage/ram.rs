@@ -1,9 +1,8 @@
 use heapless::{Deque, Vec};
-use sat_core::storage::{ConfigKey, KeyValueStorage, Storage, StorageMetadata};
+use sat_core::storage::{ConfigKey, KeyValueStorage, Storage, StorageErrorKind, StorageMetadata};
 
 use super::StorageError;
 
-/// Fixed-capacity in-memory implementation of one logical [`Storage`] area.
 pub struct RamStorage<const ENTRY_SIZE: usize, const DEPTH: usize> {
     entries: Deque<Vec<u8, ENTRY_SIZE>, DEPTH>,
 }
@@ -32,6 +31,21 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> Default for RamStorage<ENTRY_S
 
 impl<const ENTRY_SIZE: usize, const DEPTH: usize> Storage for RamStorage<ENTRY_SIZE, DEPTH> {
     type Error = StorageError;
+
+    fn max_entry_size(&self) -> Option<usize> {
+        Some(ENTRY_SIZE)
+    }
+
+    fn error_kind(error: &Self::Error) -> StorageErrorKind {
+        match error {
+            StorageError::Full => StorageErrorKind::Full,
+            StorageError::EntryTooLong { .. } => StorageErrorKind::EntryTooLong,
+            StorageError::BufferTooSmall { .. } => StorageErrorKind::BufferTooSmall,
+            StorageError::CorruptEntry => StorageErrorKind::CorruptEntry,
+            StorageError::Flash(_) => StorageErrorKind::Media,
+            StorageError::InvalidRegion => StorageErrorKind::Other,
+        }
+    }
 
     async fn append(&mut self, entry: &[u8]) -> Result<(), Self::Error> {
         let entry = Vec::from_slice(entry).map_err(|_| StorageError::EntryTooLong {
@@ -73,7 +87,6 @@ struct ConfigValue<const VALUE_SIZE: usize> {
     value: Vec<u8, VALUE_SIZE>,
 }
 
-/// Fixed-capacity in-memory implementation used for configuration and tests.
 pub struct RamKeyValueStorage<const VALUE_SIZE: usize, const KEYS: usize> {
     entries: [Option<ConfigValue<VALUE_SIZE>>; KEYS],
 }

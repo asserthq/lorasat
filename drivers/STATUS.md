@@ -47,19 +47,60 @@ SX1268 управляется через `lora_phy::sx126x::Sx1262`, но его
 
 ## Стек хранения на готовых библиотеках
 
-Новый путь: `serde/postcard` + `sequential-storage 8.0.2` +
-`embedded-storage-async 0.4` + `AsyncW25Q64` + W25Q64.
+Состояние этого storage-раздела на 2026-11-09; результаты проверок приведены ниже.
+Дата в начале файла относится к остальным разделам.
+
+Новый путь: opaque bytes/выбранный вызывающим codec → `Storage` →
+`sequential-storage =8.0.2` → `embedded-storage-async 0.4.1` → `AsyncW25Q64` → W25Q64.
+`serde/postcard` используется typed helpers, но не обязателен для FIFO;
+payload абонента остаётся opaque.
 
 - `src/flash/asynchronous.rs` реализует стандартные `ReadNorFlash`, `NorFlash`,
   `MultiwriteNorFlash` через async SPI и async ожидание готовности.
-- `src/storage/sequential.rs` содержит `SatelliteStorage`: независимые области
-  телеметрии, данных АСП и Map конфигурации/состояния, проверка разметки,
-  типизированные Queue-операции и штатная интеграция `Postcard<T>` с Map.
-- Готовая библиотека отвечает за размещение, CRC, циклическое использование памяти
-  и восстановление; собственный Flash-журнал для этого пути не пишется.
-- `CommSystem`, протокол НС и бортовая разводка Flash не изменены.
+- `src/storage/queue.rs`: `SequentialQueue<F, const BUFFER_SIZE: usize>` реализует
+  `sat_core::storage::Storage` при `F: MultiwriteNorFlash` (нужен для `pop`).
+  `new(flash, range)` проверяет конфигурацию без Flash I/O/форматирования;
+  `into_inner()` возвращает backend без стирания. Внутренний scratch, uncached,
+  без вытеснения непрочитанных записей; `Full` вместо overwrite.
+- Лимит записи — минимум scratch, округлённого вниз по `max(READ_SIZE, WRITE_SIZE)`,
+  вместимости erase-page за вычетом двух слов и item header, и `u16::MAX`.
+  Использовать `max_entry_size()`, не считать лимитом весь `BUFFER_SIZE`;
+  при переоткрытии scratch должен вмещать старые записи для `peek` **и** `pop`.
+- В `Storage` сохранены `append/peek/pop/clear`, добавлены defaults
+  `max_entry_size() = None`, `error_kind(&Error) = Other`; прежние реализации
+  source-compatible. Категории: `Full`, `EntryTooLong`, `BufferTooSmall`,
+  `CorruptEntry`, `Media`, `Other` (non-exhaustive); backend-детали ошибки сохраняются.
+- `src/storage/sequential.rs`: `SatelliteStorage` проверяет независимые области
+  телеметрии, данных АСП и Map конфигурации/состояния.
+  `client_packet_queue::<N>()`/`telemetry_queue::<N>()` дают эксклюзивно заимствующие
+  `SequentialQueue<BorrowedNorFlash<'_, F>, N>`, не split для нескольких tasks.
+  `embedded-storage-async 0.4` не реализует `MultiwriteNorFlash` для `&mut F`, поэтому
+  `BorrowedNorFlash<'a, F>` перенаправляет NOR-доступ: `new(&'a mut F) -> Self`,
+  `into_inner(self) -> &'a mut F`. Маркер реализован только при исходном
+  `F: MultiwriteNorFlash`: wrapper не создаёт capability и не добавляет свой журнал.
+  Raw/typed API и `Postcard<T>` для Map сохранены.
+  **`save_telemetry()` всё ещё разрешает overwrite**;
+  `save_client_packet()` и оба FIFO-адаптера — нет.
+- Это подготовка очереди для generic-потребителей, **не миграция подсистем**.
+  `CommSystem`, протокол НС, firmware и бортовая разводка Flash не изменены.
 
-Пример и ограничения: [STORAGE_STACK_RU.md](../docs/STORAGE_STACK_RU.md).
+Эксклюзивность нужна на всю цепочку `peek → process/application ACK → pop`.
+Transport delivery/RDP ACK не обязательно означает сохранение получателем.
+После ошибки, отмены или power loss слепой retry `append/pop` опасен дубликатами
+или удалением следующей записи. `clear` стирает только свою partition, не атомарно.
+Async SPI не даёт права безопасно отменять произвольную транзакцию/program/erase.
+Recovery/CRC делегированы библиотеке: она может пропускать CRC-invalid записи,
+но не гарантирует восстановление после произвольной порчи/torn erase.
+Автоматической миграции layout/schema/legacy `FlashRing` нет.
+
+API, пример композиции и команды проверки:
+[STORAGE_STACK_RU.md](../docs/STORAGE_STACK_RU.md).
+Проверено с `--locked --offline`: 51 drivers-тест (15 FIFO contract, 12 sequential,
+3 RAM/KV, 21 W25Q); вместе с sat-core/sat-csp — 81 тест. Cortex-M check core/drivers
+и ELF build sat-firmware прошли. Rustfmt изменённых файлов и diff-check прошли;
+Clippy завершился с прежними предупреждениями вне storage. Новые тесты покрывают
+reopen/wrap, изоляцию clear, generic API поверх AsyncW25Q64/mock SPI и byte-prefix
+сбои append без rotation/pop. Это не hardware validation и не все power-fail сценарии.
 
 ## Ранее реализованные Storage API
 
@@ -68,9 +109,10 @@ SX1268 управляется через `lora_phy::sx126x::Sx1262`, но его
 
 `src/storage/ram.rs`:
 
-- `RamStorage<ENTRY_SIZE, DEPTH>` реализует `sat_core::storage::Storage`;
+- `RamStorage<ENTRY_SIZE, DEPTH>` реализует `sat_core::storage::Storage`, сообщает
+  лимит `Some(ENTRY_SIZE)` и категории ошибок; FIFO-контракт общий с Flash-адаптером;
 - `RamKeyValueStorage<VALUE_SIZE, KEYS>` реализует `KeyValueStorage`;
-- используется в subsystem tests и до подключения flash.
+- используется в subsystem tests и до подключения flash; RAM не переживает restart.
 
 ### Удалённые прототипы
 
@@ -121,7 +163,10 @@ unresolved import sat_core::comm::link
 - нет `pop()` и `clear()`;
 - overwrite не двигает head и может уничтожить unread data.
 
-Это критично для ненулевого `base` и после recovery. Старый ring оставлен для аппаратных примеров; новый код должен использовать `SatelliteStorage` поверх готовых Queue/Map `sequential-storage`.
+Это критично для ненулевого `base` и после recovery. Старый ring оставлен для
+аппаратных примеров; для нового FIFO-кода предназначен `SequentialQueue` либо
+заимствующий адаптер `SatelliteStorage` поверх Queue `sequential-storage`.
+Открытие legacy-байтов новым API не мигрирует данные.
 
 ### Flash operations блокируют Embassy executor
 
@@ -170,7 +215,20 @@ cargo check -p sat-drivers --target thumbv7em-none-eabihf
 cargo test -p sat-drivers
 ```
 
-RAM storage tests проверяют FIFO order, non-destructive `peek`, отсутствие truncation, full queue и replace/remove config values.
+RAM storage tests проверяют FIFO order, non-destructive `peek`, отсутствие truncation,
+full queue и replace/remove config values. Исторический список выше не является
+результатом запуска нового `queue_contract`. Для проверки storage-изменений владельцу
+реализации выполнить отдельно:
+
+```text
+cargo test -p sat-drivers --test queue_contract
+cargo test -p sat-drivers --test storage
+cargo test -p sat-drivers --test sequential_storage
+cargo test -p sat-drivers --test w25q_async
+```
+
+В этой docs-only задаче Cargo не запускался. NOR-модели и отдельные power-cut
+сценарии не доказывают покрытие всех отказов и не заменяют испытания на железе.
 
 Не проходит ожидаемо:
 

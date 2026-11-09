@@ -802,3 +802,104 @@ fn malformed_postcard_and_trailing_bytes_fail_without_deleting_records() {
         }
     });
 }
+
+async fn fifo_byte_prefix_recovery(remove: bool) {
+    use sat_core::storage::{Storage as _, StorageErrorKind};
+    use sat_drivers::storage::SequentialQueue;
+    use sequential_storage::{cache::Cache, queue::QueueStorage};
+
+    let range = layout().client_packets;
+    let mut queue = SequentialQueue::<_, 64>::new(Nor::new(), range.clone()).unwrap();
+    queue.append(b"first").await.unwrap();
+    queue.append(b"second").await.unwrap();
+    let mut seeded = queue.into_inner();
+    seeded.counts = Counters::default();
+
+    let mut complete = SequentialQueue::<_, 64>::new(seeded.clone(), range.clone()).unwrap();
+    if remove {
+        assert!(complete.pop().await.unwrap());
+    } else {
+        complete.append(b"third").await.unwrap();
+    }
+    let complete = complete.into_inner();
+    let total = complete.counts.programmed;
+    assert!(total > 0);
+    assert_eq!(complete.counts.erases, 0, "non-rotating operation only");
+
+    let original = vec![b"first".to_vec(), b"second".to_vec()];
+    let committed = if remove {
+        vec![b"second".to_vec()]
+    } else {
+        vec![b"first".to_vec(), b"second".to_vec(), b"third".to_vec()]
+    };
+    for cut in 0..=total {
+        let mut flash = seeded.clone();
+        flash.budget = Some(cut);
+        let mut queue = SequentialQueue::<_, 64>::new(flash, range.clone()).unwrap();
+        let result = if remove {
+            queue.pop().await.map(|removed| assert!(removed))
+        } else {
+            queue.append(b"third").await
+        };
+        if cut < total {
+            assert_eq!(
+                SequentialQueue::<Nor, 64>::error_kind(&result.unwrap_err()),
+                StorageErrorKind::Media,
+                "cut {cut}, remove={remove}"
+            );
+        } else {
+            result.unwrap();
+        }
+        let flash = queue.into_inner();
+        assert_eq!(flash.counts.programmed, cut);
+        assert_eq!(flash.counts.erases, 0);
+        assert_eq!(
+            &flash.bytes[..range.start as usize],
+            &seeded.bytes[..range.start as usize]
+        );
+        assert_eq!(
+            &flash.bytes[range.end as usize..],
+            &seeded.bytes[range.end as usize..]
+        );
+
+        let mut raw = QueueStorage::new(
+            flash.power_cycle(),
+            QueueConfig::new(range.clone()),
+            Cache::new_uncached(),
+        );
+        let mut values = Vec::new();
+        {
+            let mut iter = raw.iter().await.unwrap();
+            while let Some(entry) = iter.next(&mut [0; 64]).await.unwrap() {
+                values.push(entry.to_vec());
+            }
+        }
+        assert!(
+            values == original || values == committed,
+            "cut {cut}: {values:?}"
+        );
+        if cut == total {
+            assert_eq!(values, committed);
+        }
+        let mut queue = SequentialQueue::<_, 64>::new(raw.destroy().0, range.clone()).unwrap();
+        queue.append(b"after recovery").await.unwrap();
+        values.push(b"after recovery".to_vec());
+        for expected in values {
+            let mut buffer = [0; 64];
+            let metadata = queue.peek(&mut buffer).await.unwrap().unwrap();
+            assert_eq!(&buffer[..metadata.length()], expected);
+            assert!(queue.pop().await.unwrap());
+        }
+        assert!(queue.peek(&mut []).await.unwrap().is_none());
+    }
+}
+
+#[test]
+fn core_fifo_adapter_recovers_each_byte_prefix_of_non_rotating_append() {
+    block_on(fifo_byte_prefix_recovery(false));
+}
+
+#[test]
+fn core_fifo_adapter_reconciles_each_byte_prefix_of_pop_before_retrying() {
+    block_on(fifo_byte_prefix_recovery(true));
+}

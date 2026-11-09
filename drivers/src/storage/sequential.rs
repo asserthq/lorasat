@@ -8,6 +8,8 @@ use sequential_storage::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::queue::{BorrowedNorFlash, SequentialQueue};
+
 pub type UncachedStorage<K = ()> = Cache<Uncached, Uncached, Uncached, K>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -82,6 +84,26 @@ impl<F: NorFlash> SatelliteStorage<F> {
             QueueConfig::new(self.layout.client_packets.clone()),
             Cache::new_uncached(),
         )
+    }
+
+    pub fn telemetry_queue<const BUFFER_SIZE: usize>(
+        &mut self,
+    ) -> SequentialQueue<BorrowedNorFlash<'_, F>, BUFFER_SIZE> {
+        SequentialQueue::from_queue(QueueStorage::new(
+            BorrowedNorFlash::new(&mut self.flash),
+            QueueConfig::new(self.layout.telemetry.clone()),
+            Cache::new_uncached(),
+        ))
+    }
+
+    pub fn client_packet_queue<const BUFFER_SIZE: usize>(
+        &mut self,
+    ) -> SequentialQueue<BorrowedNorFlash<'_, F>, BUFFER_SIZE> {
+        SequentialQueue::from_queue(QueueStorage::new(
+            BorrowedNorFlash::new(&mut self.flash),
+            QueueConfig::new(self.layout.client_packets.clone()),
+            Cache::new_uncached(),
+        ))
     }
 
     pub fn settings(&mut self) -> MapStorage<u16, &mut F, UncachedStorage<u16>> {

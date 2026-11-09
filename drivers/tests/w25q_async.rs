@@ -796,3 +796,149 @@ fn satellite_storage_retains_typed_queues_and_native_postcard_settings_after_reo
         )));
     });
 }
+
+#[test]
+fn core_storage_adapter_retains_opaque_entries_and_isolates_client_clear_on_real_driver() {
+    use sat_core::storage::{Storage, StorageErrorKind};
+    use sat_drivers::storage::{Postcard, SatelliteStorage, SequentialQueue, StorageLayout};
+
+    async fn append_and_check<S: Storage>(storage: &mut S, payload: &[u8]) {
+        assert!(storage.max_entry_size().unwrap() >= payload.len());
+        storage.append(payload).await.unwrap();
+        let mut buffer = [0xA5; 512];
+        for _ in 0..2 {
+            let metadata = storage.peek(&mut buffer).await.unwrap().unwrap();
+            assert_eq!(metadata.length(), payload.len());
+            assert_eq!(&buffer[..metadata.length()], payload);
+            buffer.fill(0x5A);
+        }
+        let mut small = [0xA5; 1];
+        let error = storage.peek(&mut small).await.unwrap_err();
+        assert_eq!(S::error_kind(&error), StorageErrorKind::BufferTooSmall);
+        assert_eq!(small, [0xA5]);
+        let metadata = storage.peek(&mut buffer).await.unwrap().unwrap();
+        assert_eq!(metadata.length(), payload.len());
+        assert_eq!(&buffer[..metadata.length()], payload);
+    }
+
+    let layout = StorageLayout {
+        telemetry: SECTOR_SIZE..3 * SECTOR_SIZE,
+        client_packets: 4 * SECTOR_SIZE..6 * SECTOR_SIZE,
+        settings: 7 * SECTOR_SIZE..9 * SECTOR_SIZE,
+    };
+    let payload = b"\x00\xFF\x80opaque client packet\x00";
+    let telemetry = b"\xFF\x00opaque telemetry\x80";
+    let config_key = 7_u16;
+    let config = Postcard(60_u32);
+    let (spi, delay, state) = peripherals();
+
+    run_ready(async {
+        let mut flash = AsyncW25Q64::new(spi, delay).await.unwrap();
+        for address in [
+            0,
+            layout.client_packets.start - 1,
+            layout.client_packets.end,
+            layout.settings.end,
+            CAPACITY - 1,
+        ] {
+            flash.write(address, &[0xA5]).await.unwrap();
+        }
+        state.borrow_mut().events.clear();
+        let mut queue =
+            SequentialQueue::<_, 512>::new(flash, layout.client_packets.clone()).unwrap();
+        assert!(state.borrow().events.is_empty());
+        assert_eq!(queue.max_entry_size(), Some(512));
+        append_and_check(&mut queue, payload).await;
+
+        let retained_memory = state.borrow().memory.clone();
+        let (spi, delay) = queue.into_inner().into_inner();
+        assert!(Rc::ptr_eq(&spi.0, &state));
+        assert!(Rc::ptr_eq(&delay.0, &state));
+        state.borrow_mut().events.clear();
+        let flash = AsyncW25Q64::new(spi, delay).await.unwrap();
+        let mut stack = SatelliteStorage::new(flash, layout.clone()).unwrap();
+        assert_eq!(state.borrow().events, [Event::Status(0), Event::Jedec]);
+        assert_eq!(state.borrow().memory, retained_memory);
+
+        let mut buffer = [0x5A; 512];
+        {
+            state.borrow_mut().events.clear();
+            let mut queue = stack.client_packet_queue::<512>();
+            assert!(state.borrow().events.is_empty());
+            assert_eq!(queue.max_entry_size(), Some(512));
+            let metadata = queue.peek(&mut buffer).await.unwrap().unwrap();
+            assert_eq!(metadata.length(), payload.len());
+            assert_eq!(&buffer[..metadata.length()], payload);
+            assert!(queue.pop().await.unwrap());
+        }
+
+        let removed_memory = state.borrow().memory.clone();
+        let (spi, delay) = stack.into_inner().into_inner();
+        state.borrow_mut().events.clear();
+        let flash = AsyncW25Q64::new(spi, delay).await.unwrap();
+        let mut reopened = SatelliteStorage::new(flash, layout.clone()).unwrap();
+        assert_eq!(state.borrow().events, [Event::Status(0), Event::Jedec]);
+        assert_eq!(state.borrow().memory, removed_memory);
+        {
+            let mut queue = reopened.client_packet_queue::<512>();
+            assert_eq!(queue.peek(&mut buffer).await.unwrap(), None);
+            assert!(!queue.pop().await.unwrap());
+            append_and_check(&mut queue, payload).await;
+        }
+        {
+            state.borrow_mut().events.clear();
+            let mut queue = reopened.telemetry_queue::<512>();
+            assert!(state.borrow().events.is_empty());
+            append_and_check(&mut queue, telemetry).await;
+        }
+        let mut settings_scratch = [0; 128];
+        reopened
+            .settings()
+            .store_item(&mut settings_scratch, &config_key, &config)
+            .await
+            .unwrap();
+
+        let protected_bytes = || {
+            state
+                .borrow()
+                .memory
+                .iter()
+                .filter(|&(&address, _)| !layout.client_packets.contains(&address))
+                .map(|(&address, &byte)| (address, byte))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let before_clear = protected_bytes();
+        {
+            let mut queue = reopened.client_packet_queue::<512>();
+            queue.clear().await.unwrap();
+            assert_eq!(queue.peek(&mut buffer).await.unwrap(), None);
+            assert!(!queue.pop().await.unwrap());
+        }
+        assert_eq!(protected_bytes(), before_clear);
+        assert!(
+            state
+                .borrow()
+                .memory
+                .range(layout.client_packets.clone())
+                .next()
+                .is_none()
+        );
+        let metadata = reopened
+            .telemetry_queue::<512>()
+            .peek(&mut buffer)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(metadata.length(), telemetry.len());
+        assert_eq!(&buffer[..metadata.length()], telemetry);
+        assert_eq!(
+            reopened
+                .settings()
+                .fetch_item::<Postcard<u32>>(&mut settings_scratch, &config_key)
+                .await
+                .unwrap(),
+            Some(config)
+        );
+        assert_eq!(protected_bytes(), before_clear);
+    });
+}

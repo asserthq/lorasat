@@ -294,24 +294,51 @@ RDP на терминальной линии не используется. По
 
 ### Storage
 
-Для нового Flash-стека выбраны готовые Queue/Map `sequential-storage`,
-`serde/postcard` и драйвер `AsyncW25Q64` со стандартными трейтами
-`embedded-storage-async`. Подробности: [Стек хранения спутника](STORAGE_STACK_RU.md).
-Примеры FIFO `Storage` ниже сохранены для существующих потребителей;
-подсистемы на новый стек ещё не переведены.
+Состояние storage API на 2026-11-09. Host-тесты и Cortex-M check прошли;
+точные команды, покрытие и ограничения приведены в спецификации хранения.
 
-`Storage` из `sat_core::storage` представляет одну bounded FIFO/ring область opaque entries:
+Flash-стек использует готовые Queue/Map `sequential-storage =8.0.2` и
+`AsyncW25Q64` со стандартными трейтами `embedded-storage-async`.
+`SequentialQueue<F, const BUFFER_SIZE: usize>` связывает Queue с
+`sat_core::storage::Storage`; `serde/postcard` — выбор вызывающего или typed helpers,
+не требование FIFO. Спецификация и вызываемый generic-пример:
+[Стек хранения спутника](STORAGE_STACK_RU.md).
+**Подсистемы и firmware ещё не мигрированы**: готовится абстракция очереди,
+а передача адаптера в конкретную подсистему остаётся отдельной работой.
+
+`Storage` представляет одну bounded FIFO-область opaque entries:
+`append` добавляет целую запись без truncation/скрытого overwrite, `peek` читает
+старшую без удаления, `pop` удаляет текущую старшую, `clear` очищает только эту область.
+Пустая очередь: `peek = None`, `pop = false`; нулевая запись: `Some` с длиной 0.
 
 ```rust,ignore
 storage.append(entry).await?;
 
+// Эксклюзивное владение на всю последовательность, не только отдельные вызовы.
 if let Some(metadata) = storage.peek(&mut buffer).await? {
-    process(&buffer[..metadata.length()]).await?;
+    save_and_wait_for_application_ack(&buffer[..metadata.length()]).await?;
     storage.pop().await?;
 }
 ```
 
-`peek()` не удаляет entry. Поэтому данные можно удалить только после успешной обработки или подтверждённой выгрузки. Запись не должна молча вытеснять старые entries: политика переполнения принадлежит владельцу конкретной области.
+`pop()` допустим только после требуемого приложением ACK сохранения/обработки
+именно этой записи. Transport delivery/RDP ACK не обязательно подтверждает её
+сохранение получателем. У `Storage` нет lease или собственного ACK; другой
+потребитель не должен менять голову между `peek` и `pop`.
+
+`max_entry_size() -> Option<usize>` сообщает лимит одной записи, не свободное место.
+`S::error_kind(&error)` возвращает `StorageErrorKind`:
+`Full`, `EntryTooLong`, `BufferTooSmall`, `CorruptEntry`, `Media`, `Other`
+(enum non-exhaustive, нужен wildcard). Defaults `None`/`Other` сохраняют source
+compatibility существующих реализаций. При `Full` владелец решает backpressure/retry,
+но не обходит контракт скрытым удалением старых записей.
+
+После сбоя/отмены результат `append/pop` может быть неопределён для вызывающего:
+слепой retry создаёт дубликат либо удаляет следующую запись. Нужны IDs и сверка
+состояния; отмена произвольной SPI-операции не считается безопасной.
+`clear` не атомарен. Recovery библиотеки может пропускать CRC-invalid записи,
+но не гарантирует восстановление после произвольной порчи. Автоматической миграции
+layout/schema/legacy `FlashRing` нет; подробные ограничения — в спецификации.
 
 Platform-level данные разделяются на независимые области:
 
@@ -329,7 +356,25 @@ PlatformStorage<
 - terminal data использует отдельный `TerminalStorage: Storage` прямо в PayloadSystem;
 - однополевый `ServiceStorage<TerminalStorage>` не нужен.
 
-Физически области могут быть partitions одной flash. Новый `SatelliteStorage` уже использует `sequential-storage`: отдельные Queue для телеметрии/данных АСП и Map для конфигурации/состояния. Это отдельный путь от FIFO-примеров выше.
+Физически области могут быть partitions одной flash. `SatelliteStorage` предоставляет
+Queue телеметрии/данных АСП и Map конфигурации/состояния. Его
+`client_packet_queue::<N>()` и `telemetry_queue::<N>()` дают
+`SequentialQueue<BorrowedNorFlash<'_, F>, N>` с эксклюзивным заимствованием всего
+storage; это не split для одновременного владения несколькими tasks.
+`embedded-storage-async 0.4` не реализует `MultiwriteNorFlash` для `&mut F`:
+`BorrowedNorFlash::new(&mut F)` перенаправляет NOR-доступ, а `into_inner()` возвращает
+`&mut F`. Маркер предоставляется только при исходном `F: MultiwriteNorFlash`;
+wrapper не создаёт эту возможность и не добавляет собственный журнал.
+`Storage`-реализация требует `MultiwriteNorFlash` для `pop`;
+адаптер хранит scratch внутри, работает uncached и
+не вытесняет непрочитанные entries. Реальный лимит нужно брать из `max_entry_size()`,
+а при переоткрытии scratch должен вмещать старые записи.
+
+Raw/typed API сохранены: **`save_telemetry()` по-прежнему разрешает overwrite**,
+в отличие от обоих FIFO-адаптеров; `save_client_packet()` не разрешает.
+Map не является реализацией старого `KeyValueStorage` для W25Q64.
+`PlatformStorage` группирует ownership, но не создаёт эту Flash-разметку автоматически.
+Envelope/codec задаёт потребитель; payload абонента остаётся opaque.
 
 ## 5. Пример Communication/Control
 

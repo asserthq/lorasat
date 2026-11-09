@@ -1,9 +1,3 @@
-/// Persistent storage areas used by platform-level services.
-///
-/// Each field is an independent logical partition. Queue-like fields normally
-/// implement [`super::Storage`]; `configs` normally implements
-/// [`super::KeyValueStorage`]. The structure only groups ownership and does not
-/// impose one physical flash layout.
 pub struct PlatformStorage<TelemetryStorage, EventStorage, DeferredCommandStorage, ConfigStorage> {
     pub telemetry: TelemetryStorage,
     pub events: EventStorage,

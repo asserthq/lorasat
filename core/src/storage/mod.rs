@@ -6,4 +6,4 @@ pub mod storage;
 pub use config::{ConfigKey, KeyValueStorage};
 pub use logger::Logger;
 pub use platform::PlatformStorage;
-pub use storage::{Storage, StorageMetadata};
+pub use storage::{Storage, StorageErrorKind, StorageMetadata};
