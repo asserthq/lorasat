@@ -1,6 +1,5 @@
 use defmt::debug;
 use embedded_hal::digital::OutputPin;
-use sat_core::comm::phy::PhyLayer;
 use sat_csp::CspInterface;
 
 use lora_phy::{
@@ -132,24 +131,6 @@ where
     }
 }
 
-impl<SPI, CTRL, WAIT, DLY> PhyLayer for Radio<SPI, CTRL, WAIT, DLY>
-where
-    SPI: SpiDevice<u8>,
-    CTRL: OutputPin,
-    WAIT: Wait,
-    DLY: DelayNs,
-{
-    type Error = super::error::Error;
-
-    async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
-        CspInterface::send(self, payload).await
-    }
-
-    async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        CspInterface::receive(self, buf).await
-    }
-}
-
 pub struct Radio1262<SPI, CTRL, WAIT, DLY>
 where
     SPI: SpiDevice<u8>,
@@ -260,23 +241,5 @@ where
             .map_err(|_| Error::Rx)?;
 
         Ok(length as usize)
-    }
-}
-
-impl<SPI, CTRL, WAIT, DLY> PhyLayer for Radio1262<SPI, CTRL, WAIT, DLY>
-where
-    SPI: SpiDevice<u8>,
-    CTRL: OutputPin,
-    WAIT: Wait,
-    DLY: DelayNs,
-{
-    type Error = super::error::Error;
-
-    async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
-        CspInterface::send(self, payload).await
-    }
-
-    async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        CspInterface::receive(self, buf).await
     }
 }
