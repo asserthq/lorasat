@@ -4,7 +4,7 @@ use super::error::AdcsError;
 // Duration нужен для задания интервала времени.
 use core::time::Duration;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Receiver;
+use embassy_sync::channel::{Receiver, Sender};
 use embassy_time::Instant;
 // Vector3 — вектор из трёх чисел типа f32.
 // Здесь он используется для магнитного поля и управляющих сигналов катушек.
@@ -25,6 +25,7 @@ use sat_core::adcs::{
 use sat_core::time::Delay;
 
 type CommandRx = Receiver<'static, CriticalSectionRawMutex, AdcsCommand, 4>;
+type EventTx = Sender<'static, CriticalSectionRawMutex, AdcsEvent, 4>;
 
 // Состояние системы ориентации и стабилизации.
 // Хранит текущий режим работы и последние значения, используемые алгоритмом.
@@ -51,6 +52,7 @@ pub struct AdcSystemImpl<M: Mag, A: Coils, D: Delay> {
     dt: Option<u64>,
     prev_measurement_time: Option<Instant>,
     rx: CommandRx,
+    tx: EventTx,
 }
 
 // Реализуем методы для работы подсистемы СОС.
@@ -67,6 +69,7 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
             dt: None,
             prev_measurement_time: None,
             rx,
+            tx,
         }
     }
 
@@ -96,7 +99,7 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
             .prev_measurement_time
             .map(|prev| (now - prev).as_micros());
         self.prev_measurement_time = Some(now);
-        self.state.outer_b = b;
+        self.state.outer_b = b?;
     }
 
     // Рассчитывает и применяет управление в зависимости от режима СОС.
