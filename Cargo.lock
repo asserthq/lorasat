@@ -1481,99 +1481,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
-name = "sandbox-mcu"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.1.1",
- "defmt-rtt",
- "defmt-test",
- "embassy-executor",
- "embassy-futures",
- "embassy-stm32",
- "embassy-sync",
- "embassy-time",
- "embedded-hal 1.0.0",
- "embedded-hal-async",
- "embedded-hal-bus",
- "embedded-io-async 0.7.0",
- "heapless 0.9.3",
- "lora-phy",
- "mmc5983_rs",
- "panic-probe",
- "postcard",
- "sat-core",
- "sat-drivers",
- "serde",
-]
-
-[[package]]
-name = "sandbox-pc"
-version = "0.1.0"
-dependencies = [
- "defmt 1.1.1",
- "embassy-futures",
- "embassy-time",
- "env_logger",
- "heapless 0.9.3",
- "log",
- "postcard",
- "sat-core",
- "sat-drivers",
- "sat-subsystems",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "sandbox-mcu"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.1.1",
- "defmt-rtt",
- "defmt-test",
- "embassy-executor",
- "embassy-futures",
- "embassy-stm32",
- "embassy-sync",
- "embassy-time",
- "embedded-hal 1.0.0",
- "embedded-hal-async",
- "embedded-hal-bus",
- "embedded-io-async 0.7.0",
- "heapless 0.9.3",
- "lora-phy",
- "mmc5983_rs",
- "panic-probe",
- "postcard",
- "sat-core",
- "sat-drivers",
- "serde",
- "veml6030",
-]
-
-[[package]]
-name = "sandbox-pc"
-version = "0.1.0"
-dependencies = [
- "defmt 1.1.1",
- "embassy-futures",
- "embassy-time",
- "env_logger",
- "heapless 0.9.3",
- "log",
- "postcard",
- "sat-core",
- "sat-drivers",
- "sat-subsystems",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "sat-core"
 version = "0.1.0"
 dependencies = [
@@ -1603,7 +1510,6 @@ dependencies = [
  "defmt 1.1.1",
  "drv8833-driver",
  "embassy-futures",
- "embassy-stm32",
  "embassy-sync",
  "embassy-time",
  "embedded-hal 1.0.0",
