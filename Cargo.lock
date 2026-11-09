@@ -784,6 +784,7 @@ dependencies = [
 name = "examples-std"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "defmt 1.1.1",
  "embassy-futures",
  "embassy-time",
@@ -792,6 +793,7 @@ dependencies = [
  "log",
  "postcard",
  "sat-core",
+ "sat-csp",
  "sat-drivers",
  "sat-subsystems",
  "serde",
@@ -823,7 +825,9 @@ dependencies = [
  "panic-probe",
  "postcard",
  "sat-core",
+ "sat-csp",
  "sat-drivers",
+ "sequential-storage",
  "serde",
 ]
 
@@ -840,10 +844,63 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "futures"
+version = "0.3.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a88cf1f829d945f548cf8fec32c61b1f202b6d93b45848602fc02af4b12ad218"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-channel"
+version = "0.3.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "262590f4fe6afeb0bc83be1daa64e52657fe185690a958af7f3ad0e92085c5ae"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cd50c473c80f6d7c3670a752354b8e569b1a7cbfdc0419ec88e5edad85e0dc7"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6754879cc9f2c66f88c6e5c35344bb0bdb0708b0352b1201815667c7eabc7458"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53c0fa8157de1303bfffdaa1cc2a673bfffb60102f76b0ef4441659124373fed"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d6d3cde68c518367be28956066ddfef33813991b77a55005a69dae04bf3b10b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
 
 [[package]]
 name = "futures-sink"
@@ -863,9 +920,15 @@ version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a77a90a256fce34da66415271e30f94ee91c57b04b8a2c042d9cf3220179deaa"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
+ "slab",
 ]
 
 [[package]]
@@ -964,6 +1027,7 @@ dependencies = [
  "atomic-polyfill",
  "hash32 0.2.1",
  "rustc_version 0.4.1",
+ "serde",
  "spin",
  "stable_deref_trait",
 ]
@@ -1307,6 +1371,7 @@ checksum = "6764c3b5dd454e283a30e6dfe78e9b31096d9e32036b5d1eaac7a6119ccb9a24"
 dependencies = [
  "cobs",
  "defmt 1.1.1",
+ "heapless 0.7.17",
  "serde",
 ]
 
@@ -1521,9 +1586,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sat-csp"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "embassy-futures",
+ "embassy-sync",
+ "futures",
+]
+
+[[package]]
 name = "sat-drivers"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "defmt 1.1.1",
  "drv8833-driver",
  "embassy-futures",
@@ -1535,12 +1611,16 @@ dependencies = [
  "embedded-hal-bus",
  "embedded-io-async 0.7.0",
  "embedded-sdmmc",
+ "embedded-storage-async",
+ "futures",
  "heapless 0.9.3",
  "lora-phy",
  "mmc5983_rs",
  "nalgebra",
  "postcard",
  "sat-core",
+ "sat-csp",
+ "sequential-storage",
  "serde",
  "veml6030",
 ]
@@ -1564,6 +1644,7 @@ dependencies = [
  "panic-probe",
  "postcard",
  "sat-core",
+ "sat-csp",
  "sat-drivers",
  "serde",
 ]
@@ -1638,6 +1719,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
+name = "sequential-storage"
+version = "8.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1550e4d0c7a6a54e2d7884309dc6bfe206d2d8884cb5498177fd936cb233616d"
+dependencies = [
+ "embedded-storage-async",
+ "postcard",
+ "serde",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1692,6 +1784,12 @@ dependencies = [
  "num-complex",
  "num-traits",
 ]
+
+[[package]]
+name = "slab"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "smallvec"

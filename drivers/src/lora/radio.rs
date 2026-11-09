@@ -1,6 +1,7 @@
 use defmt::debug;
 use embedded_hal::digital::OutputPin;
 use sat_core::comm::phy::PhyLayer;
+use sat_csp::CspInterface;
 
 use lora_phy::{
     DelayNs, LoRa,
@@ -96,6 +97,41 @@ where
     }
 }
 
+impl<SPI, CTRL, WAIT, DLY> CspInterface for Radio<SPI, CTRL, WAIT, DLY>
+where
+    SPI: SpiDevice<u8>,
+    CTRL: OutputPin,
+    WAIT: Wait,
+    DLY: DelayNs,
+{
+    type Error = super::error::Error;
+
+    async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {
+        let power_tx = 20;
+        self.lora
+            .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, power_tx, frame)
+            .await
+            .map_err(|_| Error::PrepareForTx)?;
+
+        self.lora.tx().await.map_err(|_| Error::Tx)?;
+        Ok(())
+    }
+
+    async fn receive(&mut self, frame: &mut [u8]) -> Result<usize, Self::Error> {
+        self.lora
+            .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
+            .await
+            .map_err(|_| Error::PrepareForRx)?;
+
+        let (length, _status) = self
+            .lora
+            .rx(&self.rx_pkt_params, frame)
+            .await
+            .map_err(|_| Error::Rx)?;
+        Ok(length as usize)
+    }
+}
+
 impl<SPI, CTRL, WAIT, DLY> PhyLayer for Radio<SPI, CTRL, WAIT, DLY>
 where
     SPI: SpiDevice<u8>,
@@ -106,28 +142,11 @@ where
     type Error = super::error::Error;
 
     async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
-        let power_tx = 20;
-        self.lora
-            .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, power_tx, payload)
-            .await
-            .map_err(|_| Error::PrepareForTx)?;
-
-        self.lora.tx().await.map_err(|_| Error::Tx)?;
-        Ok(())
+        CspInterface::send(self, payload).await
     }
 
     async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        self.lora
-            .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
-            .await
-            .map_err(|_| Error::PrepareForRx)?;
-
-        let (len, _status) = self
-            .lora
-            .rx(&self.rx_pkt_params, buf)
-            .await
-            .map_err(|_| Error::Rx)?;
-        Ok(len as usize)
+        CspInterface::receive(self, buf).await
     }
 }
 
@@ -208,6 +227,42 @@ where
     }
 }
 
+impl<SPI, CTRL, WAIT, DLY> CspInterface for Radio1262<SPI, CTRL, WAIT, DLY>
+where
+    SPI: SpiDevice<u8>,
+    CTRL: OutputPin,
+    WAIT: Wait,
+    DLY: DelayNs,
+{
+    type Error = super::error::Error;
+
+    async fn send(&mut self, frame: &[u8]) -> Result<(), Self::Error> {
+        self.lora
+            .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, 20, frame)
+            .await
+            .map_err(|_| Error::PrepareForTx)?;
+
+        self.lora.tx().await.map_err(|_| Error::Tx)?;
+        debug!("radio tx bytes: {:?}", frame);
+        Ok(())
+    }
+
+    async fn receive(&mut self, frame: &mut [u8]) -> Result<usize, Self::Error> {
+        self.lora
+            .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
+            .await
+            .map_err(|_| Error::PrepareForRx)?;
+
+        let (length, _status) = self
+            .lora
+            .rx(&self.rx_pkt_params, frame)
+            .await
+            .map_err(|_| Error::Rx)?;
+
+        Ok(length as usize)
+    }
+}
+
 impl<SPI, CTRL, WAIT, DLY> PhyLayer for Radio1262<SPI, CTRL, WAIT, DLY>
 where
     SPI: SpiDevice<u8>,
@@ -218,28 +273,10 @@ where
     type Error = super::error::Error;
 
     async fn send_bytes(&mut self, payload: &[u8]) -> Result<(), Self::Error> {
-        self.lora
-            .prepare_for_tx(&self.mod_params, &mut self.tx_pkt_params, 20, &payload)
-            .await
-            .map_err(|_| Error::PrepareForTx)?;
-
-        self.lora.tx().await.map_err(|_| Error::Tx)?;
-        debug!("radio tx bytes: {:?}", payload);
-        Ok(())
+        CspInterface::send(self, payload).await
     }
 
     async fn recv_bytes(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        self.lora
-            .prepare_for_rx(RxMode::Continuous, &self.mod_params, &self.rx_pkt_params)
-            .await
-            .map_err(|_| Error::PrepareForRx)?;
-
-        let (len, _status) = self
-            .lora
-            .rx(&self.rx_pkt_params, buf)
-            .await
-            .map_err(|_| Error::Rx)?;
-
-        Ok(len as usize)
+        CspInterface::receive(self, buf).await
     }
 }
