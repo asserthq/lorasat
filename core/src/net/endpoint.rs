@@ -1,4 +1,4 @@
-use crate::comm::Address;
+use crate::net::Address;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, defmt::Format)]
 pub struct Endpoint {

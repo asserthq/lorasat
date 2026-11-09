@@ -1,4 +1,4 @@
-use crate::comm::Endpoint;
+use crate::net::Endpoint;
 
 pub struct ClientRecord<'a> {
     pub source: Endpoint,

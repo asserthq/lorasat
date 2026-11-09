@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::comm::address::Address;
+use crate::net::address::Address;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, defmt::Format)]
 pub struct Beacon {
