@@ -1,6 +1,8 @@
+pub mod asynchronous;
 pub mod error;
 pub mod ring;
 
+pub use asynchronous::{AsyncFlashError, AsyncW25Q64};
 pub use error::Error;
 
 use embedded_hal::delay::DelayNs;

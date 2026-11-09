@@ -1,6 +1,6 @@
 # Состояние drivers
 
-Актуально на 2026-10-30.
+Актуально на 2026-11-04.
 
 ## Новый SX1262 CSP interface
 
@@ -45,7 +45,24 @@ let runner = RunnerBuilder::new(
 
 SX1268 управляется через `lora_phy::sx126x::Sx1262`, но его RF диапазон не включает 868 MHz. Для 868 MHz нужен соответствующий SX1262-class модуль.
 
-## Новый Storage API
+## Стек хранения на готовых библиотеках
+
+Новый путь: `serde/postcard` + `sequential-storage 8.0.2` +
+`embedded-storage-async 0.4` + `AsyncW25Q64` + W25Q64.
+
+- `src/flash/asynchronous.rs` реализует стандартные `ReadNorFlash`, `NorFlash`,
+  `MultiwriteNorFlash` через async SPI и async ожидание готовности.
+- `src/storage/sequential.rs` содержит `SatelliteStorage`: независимые области
+  телеметрии, данных АСП и Map конфигурации/состояния, проверка разметки,
+  типизированные Queue-операции и штатная интеграция `Postcard<T>` с Map.
+- Готовая библиотека отвечает за размещение, CRC, циклическое использование памяти
+  и восстановление; собственный Flash-журнал для этого пути не пишется.
+- `CommSystem`, протокол НС и бортовая разводка Flash не изменены.
+
+Пример и ограничения: [STORAGE_STACK_RU.md](../docs/STORAGE_STACK_RU.md).
+
+## Ранее реализованные Storage API
+
 
 ### RAM
 
@@ -55,43 +72,13 @@ SX1268 управляется через `lora_phy::sx126x::Sx1262`, но его
 - `RamKeyValueStorage<VALUE_SIZE, KEYS>` реализует `KeyValueStorage`;
 - используется в subsystem tests и до подключения flash.
 
-### Flash
+### Удалённые прототипы
 
-`src/storage/flash.rs` содержит новую, независимую от legacy `FlashRing`, реализацию `FlashStorage`.
-
-Свойства:
-
-- одна запись занимает один сектор W25Q64;
-- payload записывается раньше header, поэтому незавершённая запись не считается валидной;
-- header содержит magic, version, length, sequence и CRC32;
-- `mount()` сканирует partition и восстанавливает head/tail;
-- `peek()` не удаляет запись;
-- `pop()` стирает сектор только после обработки записи;
-- при заполнении возвращается `StorageError::Full`, старые записи молча не вытесняются;
-- максимум одной записи — `FLASH_ENTRY_MAX_SIZE = 4080` bytes;
-- несколько partitions могут разделять один `W25Q64` через `SharedFlash`/Embassy mutex.
-
-Пример:
-
-```rust,ignore
-let telemetry = FlashStorage::mount(
-    &shared_flash,
-    TELEMETRY_BASE,
-    TELEMETRY_LENGTH,
-)
-.await?;
-
-let events = FlashStorage::mount(
-    &shared_flash,
-    EVENTS_BASE,
-    EVENTS_LENGTH,
-)
-.await?;
-```
-
-Это простой изучаемый prototype, не окончательный wear-leveling backend. Один сектор на запись расходует flash неэффективно. Для production стоит рассмотреть `sequential-storage`: queue для журналов/команд и map для configs.
-
-`KeyValueStorage` для W25Q64 пока не реализован. Сейчас есть только RAM implementation.
+Неиспользуемые экспериментальный RAM-журнал и самодельное секторное Flash-хранилище
+удалены вместе с экспортами, отдельными тестами и устаревшей документацией.
+`Storage`, `RamStorage`, `RamKeyValueStorage` и их тесты сохранены для существующих
+потребителей. Реализации старого трейта `KeyValueStorage` для W25Q64 нет;
+новый стек предоставляет key/value через готовый `MapStorage` и `Postcard<T>`.
 
 ## Критичные устаревшие места
 
@@ -134,13 +121,13 @@ unresolved import sat_core::comm::link
 - нет `pop()` и `clear()`;
 - overwrite не двигает head и может уничтожить unread data.
 
-Это критично для ненулевого `base` и после recovery. Новый код должен использовать `storage::FlashStorage`, пока legacy ring не переписан и не покрыт fake-flash recovery tests.
+Это критично для ненулевого `base` и после recovery. Старый ring оставлен для аппаратных примеров; новый код должен использовать `SatelliteStorage` поверх готовых Queue/Map `sequential-storage`.
 
 ### Flash operations блокируют Embassy executor
 
-`W25Q64` использует blocking `embedded_hal::spi::SpiDevice` и polling `DelayNs`. `FlashStorage` вызывает его под async mutex, но сами SPI/program/erase операции остаются blocking.
+Старый `W25Q64` использует blocking `embedded_hal::spi::SpiDevice` и polling `DelayNs`, поэтому SPI/program/erase в прежних аппаратных примерах блокируют executor.
 
-Для bring-up допустимо. Для flight scheduling критично: sector erase может надолго задержать radio/ADCS tasks. Нужен async flash driver или отдельная storage task с оценённым worst-case blocking time.
+Новый стек использует `AsyncW25Q64` с асинхронными SPI и ожиданием готовности. Старые примеры ещё не перенесены; для них прежнее ограничение сохраняется.
 
 ### lora-phy 3.0.1 может panic при плохом SPI response
 

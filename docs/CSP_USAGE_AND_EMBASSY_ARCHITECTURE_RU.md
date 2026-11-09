@@ -294,6 +294,12 @@ RDP на терминальной линии не используется. По
 
 ### Storage
 
+Для нового Flash-стека выбраны готовые Queue/Map `sequential-storage`,
+`serde/postcard` и драйвер `AsyncW25Q64` со стандартными трейтами
+`embedded-storage-async`. Подробности: [Стек хранения спутника](STORAGE_STACK_RU.md).
+Примеры FIFO `Storage` ниже сохранены для существующих потребителей;
+подсистемы на новый стек ещё не переведены.
+
 `Storage` из `sat_core::storage` представляет одну bounded FIFO/ring область opaque entries:
 
 ```rust,ignore
@@ -323,7 +329,7 @@ PlatformStorage<
 - terminal data использует отдельный `TerminalStorage: Storage` прямо в PayloadSystem;
 - однополевый `ServiceStorage<TerminalStorage>` не нужен.
 
-Физически области могут быть partitions одной flash. Позже backend может использовать `sequential-storage`: queue для журналов/команд и map для configs.
+Физически области могут быть partitions одной flash. Новый `SatelliteStorage` уже использует `sequential-storage`: отдельные Queue для телеметрии/данных АСП и Map для конфигурации/состояния. Это отдельный путь от FIFO-примеров выше.
 
 ## 5. Пример Communication/Control
 
