@@ -787,6 +787,7 @@ dependencies = [
  "critical-section",
  "defmt 1.1.1",
  "embassy-futures",
+ "embassy-sync",
  "embassy-time",
  "env_logger",
  "heapless 0.9.3",
@@ -1558,6 +1559,7 @@ dependencies = [
 name = "sat-subsystems"
 version = "0.1.0"
 dependencies = [
+ "critical-section",
  "defmt 1.1.1",
  "defmt-or-log",
  "embassy-futures",

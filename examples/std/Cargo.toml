@@ -5,12 +5,28 @@ edition = "2024"
 version = "0.1.0"
 
 [features]
+payload = ["dep:sat_subsystems", "dep:embassy-sync"]
 subsystems = ["dep:sat_subsystems"]
+
+[[bin]]
+name = "payload_tx"
+path = "src/bin/payload_tx.rs"
+required-features = ["payload"]
+
+[[bin]]
+name = "payload_rx"
+path = "src/bin/payload_rx.rs"
+required-features = ["payload"]
 
 [[bin]]
 name = "sat"
 path = "src/bin/sat/main.rs"
 required-features = ["subsystems"]
+
+[[test]]
+name = "payload_commands"
+path = "tests/payload_commands.rs"
+required-features = ["payload"]
 
 [[test]]
 name = "comm_system"
@@ -24,6 +40,7 @@ sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", option
 sat_csp = { package = "sat-csp", path = "../../csp" }
 
 embassy-futures = "0.1.2"
+embassy-sync = { version = "0.8.0", optional = true }
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "sync"] }
 log = "0.4"
