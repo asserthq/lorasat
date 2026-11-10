@@ -11,6 +11,10 @@ impl Endpoint {
         Self { addr, port }
     }
 
+    pub const fn broadcast(port: u8) -> Self {
+        Self::new(Address::BROADCAST, port)
+    }
+
     pub const fn port(&self) -> u8 {
         self.port
     }
