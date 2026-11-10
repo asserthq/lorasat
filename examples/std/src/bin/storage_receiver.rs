@@ -8,7 +8,7 @@ use examples_std::{
         RECEIVER_PORT, ReceiveStoreError, receive_and_store,
     },
 };
-use sat_core::{net::DatagramSocket, storage::Storage};
+use sat_core::{net::DatagramSocket, storage::QueueStorage};
 use sat_csp::{RunnerBuilder, StackResources};
 use sat_drivers::storage::RamStorage;
 use tokio::time::{Duration, sleep};

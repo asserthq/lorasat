@@ -1,11 +1,11 @@
 use core::fmt::Debug;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, defmt::Format)]
-pub struct StorageMetadata {
+pub struct QueueMetadata {
     length: usize,
 }
 
-impl StorageMetadata {
+impl QueueMetadata {
     pub const fn new(length: usize) -> Self {
         Self { length }
     }
@@ -21,7 +21,7 @@ impl StorageMetadata {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, defmt::Format)]
 #[non_exhaustive]
-pub enum StorageErrorKind {
+pub enum QueueErrorKind {
     Full,
     EntryTooLong,
     BufferTooSmall,
@@ -31,20 +31,20 @@ pub enum StorageErrorKind {
 }
 
 #[allow(async_fn_in_trait)]
-pub trait Storage {
+pub trait QueueStorage {
     type Error: Debug;
 
     fn max_entry_size(&self) -> Option<usize> {
         None
     }
 
-    fn error_kind(_error: &Self::Error) -> StorageErrorKind {
-        StorageErrorKind::Other
+    fn error_kind(_error: &Self::Error) -> QueueErrorKind {
+        QueueErrorKind::Other
     }
 
     async fn append(&mut self, entry: &[u8]) -> Result<(), Self::Error>;
 
-    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<StorageMetadata>, Self::Error>;
+    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<QueueMetadata>, Self::Error>;
 
     async fn pop(&mut self) -> Result<bool, Self::Error>;
 

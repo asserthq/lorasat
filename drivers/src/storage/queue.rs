@@ -1,7 +1,7 @@
 use core::ops::Range;
 
 use embedded_storage_async::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash, ReadNorFlash};
-use sat_core::storage::{Storage, StorageErrorKind, StorageMetadata};
+use sat_core::storage::{QueueErrorKind, QueueMetadata, QueueStorage};
 use sequential_storage::{
     cache::Cache,
     queue::{QueueConfig, QueueConfigError, QueueStorage},
@@ -118,25 +118,27 @@ impl<F: NorFlash, const BUFFER_SIZE: usize> SequentialQueue<F, BUFFER_SIZE> {
     }
 }
 
-impl<F: MultiwriteNorFlash, const BUFFER_SIZE: usize> Storage for SequentialQueue<F, BUFFER_SIZE> {
+impl<F: MultiwriteNorFlash, const BUFFER_SIZE: usize> QueueStorage
+    for SequentialQueue<F, BUFFER_SIZE>
+{
     type Error = SequentialQueueError<F::Error>;
 
     fn max_entry_size(&self) -> Option<usize> {
         Some(Self::entry_limit())
     }
 
-    fn error_kind(error: &Self::Error) -> StorageErrorKind {
+    fn error_kind(error: &Self::Error) -> QueueErrorKind {
         match error {
-            SequentialQueueError::Full => StorageErrorKind::Full,
-            SequentialQueueError::EntryTooLong { .. } => StorageErrorKind::EntryTooLong,
-            SequentialQueueError::BufferTooSmall { .. } => StorageErrorKind::BufferTooSmall,
+            SequentialQueueError::Full => QueueErrorKind::Full,
+            SequentialQueueError::EntryTooLong { .. } => QueueErrorKind::EntryTooLong,
+            SequentialQueueError::BufferTooSmall { .. } => QueueErrorKind::BufferTooSmall,
             SequentialQueueError::Backend(error) => match error {
-                sequential_storage::Error::FullStorage => StorageErrorKind::Full,
-                sequential_storage::Error::BufferTooSmall(_) => StorageErrorKind::BufferTooSmall,
-                sequential_storage::Error::Storage { .. } => StorageErrorKind::Media,
-                sequential_storage::Error::Corrupted { .. } => StorageErrorKind::CorruptEntry,
-                sequential_storage::Error::ItemTooBig => StorageErrorKind::EntryTooLong,
-                _ => StorageErrorKind::Other,
+                sequential_storage::Error::FullStorage => QueueErrorKind::Full,
+                sequential_storage::Error::BufferTooSmall(_) => QueueErrorKind::BufferTooSmall,
+                sequential_storage::Error::Storage { .. } => QueueErrorKind::Media,
+                sequential_storage::Error::Corrupted { .. } => QueueErrorKind::CorruptEntry,
+                sequential_storage::Error::ItemTooBig => QueueErrorKind::EntryTooLong,
+                _ => QueueErrorKind::Other,
             },
         }
     }
@@ -155,7 +157,7 @@ impl<F: MultiwriteNorFlash, const BUFFER_SIZE: usize> Storage for SequentialQueu
             .map_err(|error| SequentialQueueError::from_backend(error, BUFFER_SIZE))
     }
 
-    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<StorageMetadata>, Self::Error> {
+    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<QueueMetadata>, Self::Error> {
         let Some(entry) = self
             .queue
             .peek(&mut self.scratch)
@@ -171,7 +173,7 @@ impl<F: MultiwriteNorFlash, const BUFFER_SIZE: usize> Storage for SequentialQueu
             });
         }
         buffer[..entry.len()].copy_from_slice(entry);
-        Ok(Some(StorageMetadata::new(entry.len())))
+        Ok(Some(QueueMetadata::new(entry.len())))
     }
 
     async fn pop(&mut self) -> Result<bool, Self::Error> {

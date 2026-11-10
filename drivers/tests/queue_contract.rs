@@ -4,7 +4,7 @@ use embedded_storage_async::nor_flash::{
     ErrorType, MultiwriteNorFlash, NorFlash, NorFlashError, NorFlashErrorKind, ReadNorFlash,
 };
 use futures::executor::block_on;
-use sat_core::storage::{Storage, StorageErrorKind, StorageMetadata};
+use sat_core::storage::{QueueMetadata, QueueStorage, QueueErrorKind, 
 use sat_drivers::storage::{
     RamStorage, SatelliteStorage, SequentialQueue, SequentialQueueConfigError,
     SequentialQueueError, StorageError, StorageLayout,
@@ -122,7 +122,7 @@ impl<const R: usize, const W: usize, const E: usize> NorFlash for Nor<R, W, E> {
 
 impl<const R: usize, const W: usize, const E: usize> MultiwriteNorFlash for Nor<R, W, E> {}
 
-async fn head<S: Storage>(storage: &mut S, expected: &[u8]) {
+async fn head<S: QueueStorage>(storage: &mut S, expected: &[u8]) {
     let mut buffer = vec![0xa5; expected.len() + 3];
     let metadata = storage.peek(&mut buffer).await.unwrap().unwrap();
     assert_eq!(metadata.length(), expected.len());
@@ -131,12 +131,12 @@ async fn head<S: Storage>(storage: &mut S, expected: &[u8]) {
     assert_eq!(&buffer[expected.len()..], &[0xa5; 3]);
 }
 
-async fn empty<S: Storage>(storage: &mut S) {
+async fn empty<S: QueueStorage>(storage: &mut S) {
     assert!(storage.peek(&mut []).await.unwrap().is_none());
     assert!(!storage.pop().await.unwrap());
 }
 
-async fn fill<S: Storage>(storage: &mut S) -> Vec<Vec<u8>> {
+async fn fill<S: QueueStorage>(storage: &mut S) -> Vec<Vec<u8>> {
     let mut accepted = Vec::new();
     for sequence in 0_u32..1024 {
         let mut entry = sequence.to_le_bytes().to_vec();
@@ -144,7 +144,7 @@ async fn fill<S: Storage>(storage: &mut S) -> Vec<Vec<u8>> {
         match storage.append(&entry).await {
             Ok(()) => accepted.push(entry),
             Err(error) => {
-                assert_eq!(S::error_kind(&error), StorageErrorKind::Full);
+                assert_eq!(S::error_kind(&error), QueueErrorKind::Full);
                 assert!(!accepted.is_empty());
                 return accepted;
             }
@@ -153,7 +153,7 @@ async fn fill<S: Storage>(storage: &mut S) -> Vec<Vec<u8>> {
     panic!("bounded test queue did not report Full");
 }
 
-async fn contract<S: Storage>(mut storage: S, maximum: usize) -> S {
+async fn contract<S: QueueStorage>(mut storage: S, maximum: usize) -> S {
     assert_eq!(storage.max_entry_size(), Some(maximum));
     empty(&mut storage).await;
 
@@ -183,17 +183,17 @@ async fn contract<S: Storage>(mut storage: S, maximum: usize) -> S {
     for _ in 0..2 {
         let mut small = [0x6d; 3];
         let error = storage.peek(&mut small).await.unwrap_err();
-        assert_eq!(S::error_kind(&error), StorageErrorKind::BufferTooSmall);
+        assert_eq!(S::error_kind(&error), QueueErrorKind::BufferTooSmall);
         assert_eq!(small, [0x6d; 3], "failed peek partially copied an entry");
         let error = storage.peek(&mut []).await.unwrap_err();
-        assert_eq!(S::error_kind(&error), StorageErrorKind::BufferTooSmall);
+        assert_eq!(S::error_kind(&error), QueueErrorKind::BufferTooSmall);
         head(&mut storage, b"whole entry").await;
     }
     assert!(storage.pop().await.unwrap());
 
     storage.append(b"anchor").await.unwrap();
     let error = storage.append(&vec![0x31; maximum + 1]).await.unwrap_err();
-    assert_eq!(S::error_kind(&error), StorageErrorKind::EntryTooLong);
+    assert_eq!(S::error_kind(&error), QueueErrorKind::EntryTooLong);
     let largest = vec![0x92; maximum];
     storage.append(&largest).await.unwrap();
     head(&mut storage, b"anchor").await;
@@ -205,7 +205,7 @@ async fn contract<S: Storage>(mut storage: S, maximum: usize) -> S {
     let accepted = fill(&mut storage).await;
     for _ in 0..2 {
         let error = storage.append(b"overflow").await.unwrap_err();
-        assert_eq!(S::error_kind(&error), StorageErrorKind::Full);
+        assert_eq!(S::error_kind(&error), QueueErrorKind::Full);
         head(&mut storage, &accepted[0]).await;
     }
     for entry in accepted {
@@ -247,17 +247,14 @@ fn word_aligned_flash_obeys_fifo_contract() {
 fn existing_storage_implementations_can_use_provided_defaults() {
     struct Defaults(RamStorage<8, 2>);
 
-    impl Storage for Defaults {
+    impl QueueStorage for Defaults {
         type Error = StorageError;
 
         async fn append(&mut self, entry: &[u8]) -> Result<(), Self::Error> {
             self.0.append(entry).await
         }
 
-        async fn peek(
-            &mut self,
-            buffer: &mut [u8],
-        ) -> Result<Option<StorageMetadata>, Self::Error> {
+        async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<QueueMetadata>, Self::Error> {
             self.0.peek(buffer).await
         }
 
@@ -274,73 +271,73 @@ fn existing_storage_implementations_can_use_provided_defaults() {
     assert_eq!(storage.max_entry_size(), None);
     assert_eq!(
         Defaults::error_kind(&StorageError::Full),
-        StorageErrorKind::Other
+        QueueErrorKind::Other
     );
 }
 
 #[test]
 fn errors_have_portable_kinds() {
     for (error, kind) in [
-        (StorageError::Full, StorageErrorKind::Full),
+        (StorageError::Full, QueueErrorKind::Full),
         (
             StorageError::EntryTooLong {
                 length: 9,
                 maximum: 8,
             },
-            StorageErrorKind::EntryTooLong,
+            QueueErrorKind::EntryTooLong,
         ),
         (
             StorageError::BufferTooSmall {
                 length: 3,
                 required: 8,
             },
-            StorageErrorKind::BufferTooSmall,
+            QueueErrorKind::BufferTooSmall,
         ),
-        (StorageError::CorruptEntry, StorageErrorKind::CorruptEntry),
-        (StorageError::InvalidRegion, StorageErrorKind::Other),
+        (StorageError::CorruptEntry, QueueErrorKind::CorruptEntry),
+        (StorageError::InvalidRegion, QueueErrorKind::Other),
         (
             StorageError::Flash(sat_drivers::flash::Error::Spi),
-            StorageErrorKind::Media,
+            QueueErrorKind::Media,
         ),
     ] {
         assert_eq!(RamStorage::<8, 2>::error_kind(&error), kind);
     }
 
     for (error, kind) in [
-        (SequentialQueueError::Full, StorageErrorKind::Full),
+        (SequentialQueueError::Full, QueueErrorKind::Full),
         (
             SequentialQueueError::EntryTooLong {
                 length: 17,
                 maximum: 16,
             },
-            StorageErrorKind::EntryTooLong,
+            QueueErrorKind::EntryTooLong,
         ),
         (
             SequentialQueueError::BufferTooSmall {
                 length: 3,
                 required: 7,
             },
-            StorageErrorKind::BufferTooSmall,
+            QueueErrorKind::BufferTooSmall,
         ),
         (
             SequentialQueueError::Backend(BackendError::FullStorage),
-            StorageErrorKind::Full,
+            QueueErrorKind::Full,
         ),
         (
             SequentialQueueError::Backend(BackendError::ItemTooBig),
-            StorageErrorKind::EntryTooLong,
+            QueueErrorKind::EntryTooLong,
         ),
         (
             SequentialQueueError::Backend(BackendError::BufferTooSmall(20)),
-            StorageErrorKind::BufferTooSmall,
+            QueueErrorKind::BufferTooSmall,
         ),
         (
             SequentialQueueError::Backend(BackendError::Corrupted {}),
-            StorageErrorKind::CorruptEntry,
+            QueueErrorKind::CorruptEntry,
         ),
         (
             SequentialQueueError::Backend(BackendError::LogicBug {}),
-            StorageErrorKind::Other,
+            QueueErrorKind::Other,
         ),
     ] {
         assert_eq!(SequentialQueue::<Nor, 16>::error_kind(&error), kind);
@@ -650,7 +647,7 @@ fn media_errors_keep_the_original_injected_io_error() {
             let error = result.unwrap_err();
             assert_eq!(
                 SequentialQueue::<Nor, 32>::error_kind(&error),
-                StorageErrorKind::Media
+                QueueErrorKind::Media
             );
             assert!(matches!(
                 error,
@@ -681,13 +678,13 @@ fn an_oversized_raw_head_is_reported_and_retained_not_skipped_or_popped() {
             let error = queue.peek(&mut caller).await.unwrap_err();
             assert_eq!(
                 SequentialQueue::<Nor<4, 4>, 16>::error_kind(&error),
-                StorageErrorKind::BufferTooSmall
+                QueueErrorKind::BufferTooSmall
             );
             assert_eq!(caller, [0xb2; 32]);
             let error = queue.pop().await.unwrap_err();
             assert_eq!(
                 SequentialQueue::<Nor<4, 4>, 16>::error_kind(&error),
-                StorageErrorKind::BufferTooSmall
+                QueueErrorKind::BufferTooSmall
             );
         }
         let flash = queue.into_inner();

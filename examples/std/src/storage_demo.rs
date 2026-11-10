@@ -5,7 +5,7 @@ use std::{
 
 use sat_core::{
     net::{Address, DatagramMetadata, DatagramSocket, Endpoint},
-    storage::Storage,
+    storage::QueueStorage,
 };
 
 pub const SENDER_ADDRESS: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 25_041);
@@ -27,7 +27,7 @@ pub enum ReceiveStoreError<TransportError, StorageError> {
     Storage(StorageError),
 }
 
-pub async fn receive_and_store<D: DatagramSocket, S: Storage>(
+pub async fn receive_and_store<D: DatagramSocket, S: QueueStorage>(
     socket: &mut D,
     storage: &mut S,
     buffer: &mut [u8],

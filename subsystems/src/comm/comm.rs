@@ -6,7 +6,7 @@ use embassy_time::{Duration, Instant, Ticker};
 use sat_core::{
     comm::{DatagramMetadata, DatagramSocket, ReliableMessageSession, SessionListener},
     entity::Beacon,
-    storage::Storage,
+    storage::QueueStorage,
 };
 
 use super::{CommConfig, CommState, beacon_codec, client_record_codec, command_codec};
@@ -21,7 +21,7 @@ where
     ClientSocket: DatagramSocket,
     GroundSocket: DatagramSocket,
     CommandListener: SessionListener,
-    ClientStorage: Storage,
+    ClientStorage: QueueStorage,
 {
     client_socket: ClientSocket,
     ground_socket: GroundSocket,
@@ -37,7 +37,7 @@ where
     ClientSocket: DatagramSocket,
     GroundSocket: DatagramSocket,
     CommandListener: SessionListener,
-    ClientStorage: Storage,
+    ClientStorage: QueueStorage,
 {
     pub fn new(
         client_socket: ClientSocket,

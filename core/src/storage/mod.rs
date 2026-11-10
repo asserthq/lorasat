@@ -1,9 +1,5 @@
-pub mod config;
-pub mod logger;
-pub mod platform;
-pub mod storage;
+pub mod map;
+pub mod queue;
 
-pub use config::{ConfigKey, KeyValueStorage};
-pub use logger::Logger;
-pub use platform::PlatformStorage;
-pub use storage::{Storage, StorageErrorKind, StorageMetadata};
+pub use map::{Key, MapStorage};
+pub use queue::{QueueErrorKind, QueueMetadata, QueueStorage};

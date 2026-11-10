@@ -7,7 +7,7 @@ use std::{
 };
 
 use futures::{Future, executor::block_on};
-use sat_core::storage::Storage;
+use sat_core::storage::QueueStorage;
 use sat_drivers::storage::{RamStorage, StorageError};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -36,7 +36,7 @@ enum DeliveryError<StorageError, ConsumerError> {
     HeadMissing,
 }
 
-async fn deliver_next<S: Storage, C: Consumer>(
+async fn deliver_next<S: QueueStorage, C: Consumer>(
     storage: &mut S,
     consumer: &mut C,
     buffer: &mut [u8],
@@ -121,7 +121,7 @@ impl Consumer for MockConsumer {
     }
 }
 
-async fn assert_head<S: Storage>(storage: &mut S, expected: &[u8]) {
+async fn assert_head<S: QueueStorage>(storage: &mut S, expected: &[u8]) {
     let mut buffer = [0; 64];
     let metadata = storage.peek(&mut buffer).await.unwrap().unwrap();
     assert_eq!(&buffer[..metadata.length()], expected);

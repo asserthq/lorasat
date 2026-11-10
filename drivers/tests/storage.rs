@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use sat_core::storage::{ConfigKey, KeyValueStorage, Storage};
+use sat_core::storage::{Key, MapStorage, QueueStorage};
 use sat_drivers::storage::{RamKeyValueStorage, RamStorage, StorageError};
 
 fn run_ready<FutureType: Future>(future: FutureType) -> FutureType::Output {
@@ -61,7 +61,7 @@ fn ram_storage_rejects_truncation_and_overflow() {
 #[test]
 fn ram_key_value_storage_replaces_values() {
     let mut storage = RamKeyValueStorage::<8, 2>::new();
-    let key = ConfigKey(7);
+    let key = Key(7);
     run_ready(storage.store(key, b"old")).unwrap();
     run_ready(storage.store(key, b"new")).unwrap();
 

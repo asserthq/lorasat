@@ -1,5 +1,5 @@
 use heapless::{Deque, Vec};
-use sat_core::storage::{ConfigKey, KeyValueStorage, Storage, StorageErrorKind, StorageMetadata};
+use sat_core::storage::{Key, MapStorage, QueueMetadata, QueueStorage, QueueErrorKind, 
 
 use super::StorageError;
 
@@ -29,21 +29,21 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> Default for RamStorage<ENTRY_S
     }
 }
 
-impl<const ENTRY_SIZE: usize, const DEPTH: usize> Storage for RamStorage<ENTRY_SIZE, DEPTH> {
+impl<const ENTRY_SIZE: usize, const DEPTH: usize> QueueStorage for RamStorage<ENTRY_SIZE, DEPTH> {
     type Error = StorageError;
 
     fn max_entry_size(&self) -> Option<usize> {
         Some(ENTRY_SIZE)
     }
 
-    fn error_kind(error: &Self::Error) -> StorageErrorKind {
+    fn error_kind(error: &Self::Error) -> QueueErrorKind {
         match error {
-            StorageError::Full => StorageErrorKind::Full,
-            StorageError::EntryTooLong { .. } => StorageErrorKind::EntryTooLong,
-            StorageError::BufferTooSmall { .. } => StorageErrorKind::BufferTooSmall,
-            StorageError::CorruptEntry => StorageErrorKind::CorruptEntry,
-            StorageError::Flash(_) => StorageErrorKind::Media,
-            StorageError::InvalidRegion => StorageErrorKind::Other,
+            StorageError::Full => QueueErrorKind::Full,
+            StorageError::EntryTooLong { .. } => QueueErrorKind::EntryTooLong,
+            StorageError::BufferTooSmall { .. } => QueueErrorKind::BufferTooSmall,
+            StorageError::CorruptEntry => QueueErrorKind::CorruptEntry,
+            StorageError::Flash(_) => QueueErrorKind::Media,
+            StorageError::InvalidRegion => QueueErrorKind::Other,
         }
     }
 
@@ -57,7 +57,7 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> Storage for RamStorage<ENTRY_S
             .map_err(|_| StorageError::Full)
     }
 
-    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<StorageMetadata>, Self::Error> {
+    async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<QueueMetadata>, Self::Error> {
         let Some(entry) = self.entries.front() else {
             return Ok(None);
         };
@@ -69,7 +69,7 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> Storage for RamStorage<ENTRY_S
         }
 
         buffer[..entry.len()].copy_from_slice(entry);
-        Ok(Some(StorageMetadata::new(entry.len())))
+        Ok(Some(QueueMetadata::new(entry.len())))
     }
 
     async fn pop(&mut self) -> Result<bool, Self::Error> {
@@ -83,7 +83,7 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> Storage for RamStorage<ENTRY_S
 }
 
 struct ConfigValue<const VALUE_SIZE: usize> {
-    key: ConfigKey,
+    key: Key,
     value: Vec<u8, VALUE_SIZE>,
 }
 
@@ -98,7 +98,7 @@ impl<const VALUE_SIZE: usize, const KEYS: usize> RamKeyValueStorage<VALUE_SIZE, 
         }
     }
 
-    fn find(&self, key: ConfigKey) -> Option<usize> {
+    fn find(&self, key: Key) -> Option<usize> {
         self.entries
             .iter()
             .position(|entry| entry.as_ref().is_some_and(|entry| entry.key == key))
@@ -111,12 +111,12 @@ impl<const VALUE_SIZE: usize, const KEYS: usize> Default for RamKeyValueStorage<
     }
 }
 
-impl<const VALUE_SIZE: usize, const KEYS: usize> KeyValueStorage
+impl<const VALUE_SIZE: usize, const KEYS: usize> MapStorage
     for RamKeyValueStorage<VALUE_SIZE, KEYS>
 {
     type Error = StorageError;
 
-    async fn store(&mut self, key: ConfigKey, value: &[u8]) -> Result<(), Self::Error> {
+    async fn store(&mut self, key: Key, value: &[u8]) -> Result<(), Self::Error> {
         let value = Vec::from_slice(value).map_err(|_| StorageError::EntryTooLong {
             length: value.len(),
             maximum: VALUE_SIZE,
@@ -136,11 +136,7 @@ impl<const VALUE_SIZE: usize, const KEYS: usize> KeyValueStorage
         Ok(())
     }
 
-    async fn load(
-        &mut self,
-        key: ConfigKey,
-        buffer: &mut [u8],
-    ) -> Result<Option<usize>, Self::Error> {
+    async fn load(&mut self, key: Key, buffer: &mut [u8]) -> Result<Option<usize>, Self::Error> {
         let Some(index) = self.find(key) else {
             return Ok(None);
         };
@@ -159,7 +155,7 @@ impl<const VALUE_SIZE: usize, const KEYS: usize> KeyValueStorage
         Ok(Some(value.len()))
     }
 
-    async fn remove(&mut self, key: ConfigKey) -> Result<bool, Self::Error> {
+    async fn remove(&mut self, key: Key) -> Result<bool, Self::Error> {
         let Some(index) = self.find(key) else {
             return Ok(false);
         };

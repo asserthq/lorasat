@@ -799,10 +799,10 @@ fn satellite_storage_retains_typed_queues_and_native_postcard_settings_after_reo
 
 #[test]
 fn core_storage_adapter_retains_opaque_entries_and_isolates_client_clear_on_real_driver() {
-    use sat_core::storage::{Storage, StorageErrorKind};
+    use sat_core::storage::{QueueStorage, QueueErrorKind};
     use sat_drivers::storage::{Postcard, SatelliteStorage, SequentialQueue, StorageLayout};
 
-    async fn append_and_check<S: Storage>(storage: &mut S, payload: &[u8]) {
+    async fn append_and_check<S: QueueStorage>(storage: &mut S, payload: &[u8]) {
         assert!(storage.max_entry_size().unwrap() >= payload.len());
         storage.append(payload).await.unwrap();
         let mut buffer = [0xA5; 512];
@@ -814,7 +814,7 @@ fn core_storage_adapter_retains_opaque_entries_and_isolates_client_clear_on_real
         }
         let mut small = [0xA5; 1];
         let error = storage.peek(&mut small).await.unwrap_err();
-        assert_eq!(S::error_kind(&error), StorageErrorKind::BufferTooSmall);
+        assert_eq!(S::error_kind(&error), QueueErrorKind::BufferTooSmall);
         assert_eq!(small, [0xA5]);
         let metadata = storage.peek(&mut buffer).await.unwrap().unwrap();
         assert_eq!(metadata.length(), payload.len());
