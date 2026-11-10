@@ -1,5 +1,5 @@
 use heapless::{Deque, Vec};
-use sat_core::storage::{Key, MapStorage, QueueMetadata, QueueStorage, QueueErrorKind, 
+use sat_core::storage::{Key, MapStorage, QueueErrorKind, QueueMetadata, QueueStorage};
 
 use super::StorageError;
 

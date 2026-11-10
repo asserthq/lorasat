@@ -147,10 +147,16 @@ unresolved import sat_core::comm::link
 
 - `client-device/src/main.rs` и `client-device/src/device.rs`;
 - `ground-station/src/main.rs` и legacy transport mocks;
-- `examples/std/tests/transport_srv_chunking.rs`;
-- `examples/stm32f401/src/bin/tx_flash/main.rs`.
+- `examples/std/tests/transport_srv_chunking.rs`.
 
 `client-device` сейчас не собирается и требует перехода на простой CSP beacon decoder/datagram sender. `ground-station` требует перехода на `sat-csp` или новые core traits.
+
+### Старое логирование удалено
+
+SD-логгер и его модуль `sd` удалены после удаления core-трейта `Logger`.
+Старый `tx_flash` сохранён только для просмотра в `examples/stm32f401/archive/tx_flash/`, вне Cargo-targets.
+Новый Flash-стек использует `AsyncW25Q64`, `sequential-storage` и `QueueStorage`.
+`FlashRing` пока сохранён отдельно для оставшихся legacy-пользователей.
 
 ### Legacy FlashRing нельзя использовать как новый Storage
 
@@ -199,7 +205,6 @@ unresolved import sat_core::comm::link
 Строгий `cargo clippy -p sat-drivers --no-deps -- -D warnings` блокируют локальные замечания в:
 
 - `flash/ring.rs` и `flash/mod.rs`: `is_multiple_of`, `is_none_or`;
-- `sd/sdcard_logger.rs`: упрощение `map_or`, nested `if`, лишний `Ok(...?)`, references;
 - `coils`: module inception, слишком много constructor arguments;
 - test build `coils/coils.rs`: unused `ComplexField`.
 

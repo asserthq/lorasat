@@ -4,7 +4,7 @@ use embedded_storage_async::nor_flash::{
     ErrorType, MultiwriteNorFlash, NorFlash, NorFlashError, NorFlashErrorKind, ReadNorFlash,
 };
 use futures::executor::block_on;
-use sat_core::storage::{QueueMetadata, QueueStorage, QueueErrorKind, 
+use sat_core::storage::{QueueErrorKind, QueueMetadata, QueueStorage};
 use sat_drivers::storage::{
     RamStorage, SatelliteStorage, SequentialQueue, SequentialQueueConfigError,
     SequentialQueueError, StorageError, StorageLayout,
@@ -12,7 +12,7 @@ use sat_drivers::storage::{
 use sequential_storage::{
     Error as BackendError,
     cache::{Cache, Uncached},
-    queue::{QueueConfig, QueueConfigError, QueueStorage},
+    queue::{QueueConfig, QueueConfigError, QueueStorage as NativeQueueStorage},
 };
 
 const PAGE: usize = 256;
@@ -426,7 +426,7 @@ async fn limit<const BUFFER: usize, F: MultiwriteNorFlash>(flash: F, maximum: us
 #[test]
 fn advertised_limit_accounts_for_scratch_alignment_page_overhead_and_u16() {
     block_on(async {
-        let overhead = QueueStorage::<Nor<4, 4>, NoCache>::item_overhead_size() as usize;
+        let overhead = NativeQueueStorage::<Nor<4, 4>, NoCache>::item_overhead_size() as usize;
         let page_limit = PAGE - 2 * 4 - overhead;
         limit::<0, _>(Nor::<4, 4>::new(1), 0).await;
         limit::<3, _>(Nor::<4, 4>::new(1), 0).await;
@@ -663,7 +663,7 @@ fn media_errors_keep_the_original_injected_io_error() {
 fn an_oversized_raw_head_is_reported_and_retained_not_skipped_or_popped() {
     block_on(async {
         let range = 0..2 * PAGE as u32;
-        let mut raw = QueueStorage::new(
+        let mut raw = NativeQueueStorage::new(
             Nor::<4, 4>::new(2),
             QueueConfig::new(range.clone()),
             Cache::new_uncached(),
@@ -689,7 +689,8 @@ fn an_oversized_raw_head_is_reported_and_retained_not_skipped_or_popped() {
         }
         let flash = queue.into_inner();
         assert_eq!(flash.bytes, original);
-        let mut raw = QueueStorage::new(flash, QueueConfig::new(range), Cache::new_uncached());
+        let mut raw =
+            NativeQueueStorage::new(flash, QueueConfig::new(range), Cache::new_uncached());
         assert_eq!(raw.peek(&mut [0; 32]).await.unwrap().unwrap(), &[0x69; 17]);
         assert_eq!(raw.pop(&mut [0; 32]).await.unwrap().unwrap(), &[0x69; 17]);
         assert_eq!(raw.peek(&mut [0; 32]).await.unwrap().unwrap(), b"later");

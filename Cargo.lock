@@ -1516,7 +1516,6 @@ dependencies = [
  "embedded-hal-async",
  "embedded-hal-bus",
  "embedded-io-async 0.7.0",
- "embedded-sdmmc",
  "embedded-storage-async",
  "futures",
  "heapless 0.9.3",
