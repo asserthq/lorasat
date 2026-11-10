@@ -4,7 +4,7 @@ use embedded_storage_async::nor_flash::{ErrorType, MultiwriteNorFlash, NorFlash,
 use sat_core::storage::{QueueErrorKind, QueueMetadata, QueueStorage};
 use sequential_storage::{
     cache::Cache,
-    queue::{QueueConfig, QueueConfigError, QueueStorage as NativeQueueStorage},
+    queue::{QueueConfig, QueueConfigError, QueueStorage as SequentialQueueStorage},
 };
 
 use super::sequential::UncachedStorage;
@@ -80,7 +80,7 @@ impl<E> SequentialQueueError<E> {
 }
 
 pub struct SequentialQueue<F: NorFlash, const BUFFER_SIZE: usize> {
-    queue: NativeQueueStorage<F, UncachedStorage>,
+    queue: SequentialQueueStorage<F, UncachedStorage>,
     scratch: [u8; BUFFER_SIZE],
 }
 
@@ -90,14 +90,14 @@ impl<F: NorFlash, const BUFFER_SIZE: usize> SequentialQueue<F, BUFFER_SIZE> {
             return Err(SequentialQueueConfigError::OutOfBounds);
         }
         let config = QueueConfig::<F>::try_new(range).map_err(SequentialQueueConfigError::Queue)?;
-        Ok(Self::from_queue(NativeQueueStorage::new(
+        Ok(Self::from_queue(SequentialQueueStorage::new(
             flash,
             config,
             Cache::new_uncached(),
         )))
     }
 
-    pub(crate) fn from_queue(queue: NativeQueueStorage<F, UncachedStorage>) -> Self {
+    pub(crate) fn from_queue(queue: SequentialQueueStorage<F, UncachedStorage>) -> Self {
         Self {
             queue,
             scratch: [0; BUFFER_SIZE],
@@ -111,7 +111,7 @@ impl<F: NorFlash, const BUFFER_SIZE: usize> SequentialQueue<F, BUFFER_SIZE> {
             F::ERASE_SIZE
                 .saturating_sub(2 * word)
                 .saturating_sub(
-                    NativeQueueStorage::<F, UncachedStorage>::item_overhead_size() as usize,
+                    SequentialQueueStorage::<F, UncachedStorage>::item_overhead_size() as usize,
                 );
         buffer_limit.min(page_limit).min(u16::MAX as usize)
     }
