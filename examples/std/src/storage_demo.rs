@@ -14,7 +14,8 @@ pub const SENDER_NODE: u16 = 1;
 pub const RECEIVER_NODE: u16 = 2;
 pub const SENDER_PORT: u8 = 10;
 pub const RECEIVER_PORT: u8 = 11;
-pub const RECEIVER_ENDPOINT: Endpoint = Endpoint::new(Address(RECEIVER_NODE as u32), RECEIVER_PORT);
+pub const RECEIVER_ENDPOINT: Endpoint =
+    Endpoint::new(Address::new_unicast(RECEIVER_NODE).unwrap(), RECEIVER_PORT);
 pub const ENTRY_SIZE: usize = 256;
 pub const QUEUE_DEPTH: usize = 16;
 pub const MTU: usize = sat_csp::HEADER_SIZE + ENTRY_SIZE;
@@ -116,7 +117,10 @@ mod tests {
                     .await
                     .unwrap();
                 assert_eq!(metadata.length(), packet.len());
-                assert_eq!(metadata.source(), Endpoint::new(Address(1), SENDER_PORT));
+                assert_eq!(
+                    metadata.source(),
+                    Endpoint::new(Address::new_unicast(1).unwrap(), SENDER_PORT)
+                );
             }
             assert_eq!(storage.len(), packets.len());
             for packet in packets {
@@ -253,11 +257,17 @@ mod tests {
             bind_pair(&sender_resources, &receiver_resources).await;
         run_pair(&mut sender_runner, &mut receiver_runner, async {
             sender
-                .send_to(Endpoint::new(Address(3), RECEIVER_PORT), b"other node")
+                .send_to(
+                    Endpoint::new(Address::new_unicast(3).unwrap(), RECEIVER_PORT),
+                    b"other node",
+                )
                 .await
                 .unwrap();
             sender
-                .send_to(Endpoint::new(Address(2), RECEIVER_PORT + 1), b"other port")
+                .send_to(
+                    Endpoint::new(Address::new_unicast(2).unwrap(), RECEIVER_PORT + 1),
+                    b"other port",
+                )
                 .await
                 .unwrap();
             sender.send_to(RECEIVER_ENDPOINT, b"ours").await.unwrap();

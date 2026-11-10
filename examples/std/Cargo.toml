@@ -36,11 +36,11 @@ required-features = ["subsystems"]
 [dependencies]
 sat_core = { package = "sat-core", path = "../../core" }
 sat_drivers = { package = "sat-drivers", path = "../../drivers" }
-sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", optional = true }
+sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", features = ["log"] }
 sat_csp = { package = "sat-csp", path = "../../csp" }
 
 embassy-futures = "0.1.2"
-embassy-sync = { version = "0.8.0", optional = true }
+embassy-sync = "0.8.0"
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "sync"] }
 log = "0.4"

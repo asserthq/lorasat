@@ -96,8 +96,8 @@ impl ReliableSession for MockSession {
 
 #[test]
 fn datagram_preserves_source_and_message_boundary() {
-    let source = Endpoint::new(Address(10), 7);
-    let destination = Endpoint::new(Address(20), 8);
+    let source = Endpoint::new(Address::new_unicast(10).unwrap(), 7);
+    let destination = Endpoint::new(Address::new_unicast(20).unwrap(), 8);
     let mut socket = MockDatagramSocket::with_inbound(source, b"record");
     let mut buffer = [0; 16];
 
@@ -113,7 +113,7 @@ fn datagram_preserves_source_and_message_boundary() {
 
 #[test]
 fn datagram_does_not_silently_truncate() {
-    let source = Endpoint::new(Address(10), 7);
+    let source = Endpoint::new(Address::new_unicast(10).unwrap(), 7);
     let mut socket = MockDatagramSocket::with_inbound(source, b"too large");
     let mut small = [0; 4];
 
@@ -129,7 +129,7 @@ fn datagram_does_not_silently_truncate() {
 
 #[test]
 fn reliable_session_receives_one_complete_message() {
-    let peer = Endpoint::new(Address(1), 12);
+    let peer = Endpoint::new(Address::new_unicast(1).unwrap(), 12);
     let mut session = MockSession {
         peer,
         inbound: Some(b"command"),

@@ -18,7 +18,7 @@ pub use serde::{Deserialize, Serialize};
 pub struct Address(u16);
 
 impl Address {
-    pub const MAX_VALUE: u16 = 1 << 14;
+    pub const MAX_VALUE: u16 = (1 << 14) - 1;
     pub const BROADCAST: Self = Self(Self::MAX_VALUE);
 
     pub const fn new(value: u16) -> Option<Self> {

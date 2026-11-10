@@ -3,7 +3,7 @@ use std::io;
 use sat_core::net::Endpoint;
 
 #[derive(Debug)]
-pub enum MockCspError {
+pub enum MockNetError {
     Io(io::Error),
     InvalidEndpoint(Endpoint),
     BufferTooSmall { required: usize, available: usize },
@@ -11,7 +11,7 @@ pub enum MockCspError {
     Closed,
 }
 
-impl From<io::Error> for MockCspError {
+impl From<io::Error> for MockNetError {
     fn from(error: io::Error) -> Self {
         Self::Io(error)
     }

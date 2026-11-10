@@ -1,6 +1,5 @@
 use sat_core::net::{
     Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession, SessionListener,
-    address::BROADCAST_ADDRESS,
 };
 use sat_csp::{
     Datagram, MAX_NODE_ID, MAX_PORT, RdpConnection, RdpError, RdpListener, RdpMessage,
@@ -55,16 +54,10 @@ impl<const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> DatagramSoc
     type Error = CspDatagramError;
 
     async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error> {
-        let address = if destination.addr() == BROADCAST_ADDRESS {
-            MAX_NODE_ID
-        } else {
-            let address = u16::try_from(destination.addr().0)
-                .map_err(|_| CspDatagramError::InvalidAddress(destination.addr()))?;
-            if address > MAX_NODE_ID {
-                return Err(CspDatagramError::InvalidAddress(destination.addr()));
-            }
-            address
-        };
+        let address = destination.addr().get();
+        if address > MAX_NODE_ID {
+            return Err(CspDatagramError::InvalidAddress(destination.addr()));
+        }
         if destination.port() > MAX_PORT {
             return Err(CspDatagramError::InvalidPort(destination.port()));
         }
@@ -92,7 +85,7 @@ impl<const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> DatagramSoc
         buffer[..length].copy_from_slice(datagram.payload());
         Ok(DatagramMetadata::new(
             Endpoint::new(
-                Address(u32::from(datagram.source())),
+                Address::new(datagram.source()).expect("CSP source address must be valid"),
                 datagram.source_port(),
             ),
             length,
@@ -116,7 +109,7 @@ impl<const MTU: usize> ReliableSession for CspRdpSession<'_, MTU> {
 
     fn peer(&self) -> Endpoint {
         Endpoint::new(
-            Address(u32::from(self.connection.peer_address())),
+            Address::new(self.connection.peer_address()).expect("CSP peer address must be valid"),
             self.connection.peer_port(),
         )
     }

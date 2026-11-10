@@ -12,8 +12,8 @@ use tokio::{
 };
 
 use super::{
-    MockCspError,
-    address::{decode_endpoint, encode_endpoint, socket_address},
+    MockNetError,
+    address::{ENCODED_ENDPOINT_SIZE, decode_endpoint, encode_endpoint, socket_address},
 };
 
 const MAX_SESSION_MESSAGE_SIZE: usize = 65_535;
@@ -35,7 +35,7 @@ impl Drop for TcpSession {
 }
 
 impl ReliableSession for TcpSession {
-    type Error = MockCspError;
+    type Error = MockNetError;
 
     fn peer(&self) -> Endpoint {
         self.peer
@@ -43,7 +43,7 @@ impl ReliableSession for TcpSession {
 
     async fn send(&mut self, message: &[u8]) -> Result<(), Self::Error> {
         if message.len() > MAX_SESSION_MESSAGE_SIZE {
-            return Err(MockCspError::MessageTooLarge {
+            return Err(MockNetError::MessageTooLarge {
                 length: message.len(),
                 maximum: MAX_SESSION_MESSAGE_SIZE,
             });
@@ -59,13 +59,13 @@ impl ReliableSession for TcpSession {
     async fn recv(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
         let message = match self.pending.take() {
             Some(message) => message,
-            None => self.incoming.recv().await.ok_or(MockCspError::Closed)??,
+            None => self.incoming.recv().await.ok_or(MockNetError::Closed)??,
         };
 
         if message.len() > buffer.len() {
             let required = message.len();
             self.pending = Some(message);
-            return Err(MockCspError::BufferTooSmall {
+            return Err(MockNetError::BufferTooSmall {
                 required,
                 available: buffer.len(),
             });
@@ -77,12 +77,12 @@ impl ReliableSession for TcpSession {
 }
 
 pub struct TcpSessionListener {
-    incoming: mpsc::Receiver<Result<TcpSession, MockCspError>>,
+    incoming: mpsc::Receiver<Result<TcpSession, MockNetError>>,
     accept_task: JoinHandle<()>,
 }
 
 impl TcpSessionListener {
-    pub async fn bind(local: Endpoint) -> Result<Self, MockCspError> {
+    pub async fn bind(local: Endpoint) -> Result<Self, MockNetError> {
         let listener = TcpListener::bind(socket_address(local)?).await?;
         let (sender, incoming) = mpsc::channel(LISTENER_QUEUE_DEPTH);
         let accept_task = tokio::spawn(async move {
@@ -107,11 +107,11 @@ impl Drop for TcpSessionListener {
 }
 
 impl SessionListener for TcpSessionListener {
-    type Error = MockCspError;
+    type Error = MockNetError;
     type Session = TcpSession;
 
     async fn accept(&mut self) -> Result<Self::Session, Self::Error> {
-        self.incoming.recv().await.ok_or(MockCspError::Closed)?
+        self.incoming.recv().await.ok_or(MockNetError::Closed)?
     }
 }
 
@@ -127,7 +127,7 @@ impl TcpSessionConnector {
 }
 
 impl SessionConnector for TcpSessionConnector {
-    type Error = MockCspError;
+    type Error = MockNetError;
     type Session = TcpSession;
 
     async fn connect(&mut self, peer: Endpoint) -> Result<Self::Session, Self::Error> {
@@ -138,11 +138,11 @@ impl SessionConnector for TcpSessionConnector {
     }
 }
 
-async fn accept_session(listener: &TcpListener) -> Result<TcpSession, MockCspError> {
+async fn accept_session(listener: &TcpListener) -> Result<TcpSession, MockNetError> {
     let (mut stream, _) = listener.accept().await?;
-    let mut encoded_peer = [0_u8; 5];
+    let mut encoded_peer = [0_u8; ENCODED_ENDPOINT_SIZE];
     stream.read_exact(&mut encoded_peer).await?;
-    let peer = decode_endpoint(encoded_peer);
+    let peer = decode_endpoint(encoded_peer)?;
     socket_address(peer)?;
     Ok(create_session(stream, peer))
 }
@@ -175,7 +175,7 @@ async fn read_messages(
             let _ = sender
                 .send(Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    "mock CSP session message exceeds configured limit",
+                    "mock network session message exceeds configured limit",
                 )))
                 .await;
             break;
@@ -202,8 +202,8 @@ mod tests {
 
     #[tokio::test]
     async fn round_trip_preserves_message_boundaries() {
-        let server_endpoint = Endpoint::new(Address(508), 20);
-        let client_endpoint = Endpoint::new(Address(509), 63);
+        let server_endpoint = Endpoint::new(Address::new_unicast(508).unwrap(), 20);
+        let client_endpoint = Endpoint::new(Address::new_unicast(509).unwrap(), 63);
         let mut listener = TcpSessionListener::bind(server_endpoint).await.unwrap();
         let mut connector = TcpSessionConnector::new(client_endpoint);
 
@@ -225,8 +225,8 @@ mod tests {
 
     #[tokio::test]
     async fn buffer_error_keeps_complete_message() {
-        let server_endpoint = Endpoint::new(Address(512), 20);
-        let client_endpoint = Endpoint::new(Address(513), 63);
+        let server_endpoint = Endpoint::new(Address::new_unicast(512).unwrap(), 20);
+        let client_endpoint = Endpoint::new(Address::new_unicast(513).unwrap(), 63);
         let mut listener = TcpSessionListener::bind(server_endpoint).await.unwrap();
         let mut connector = TcpSessionConnector::new(client_endpoint);
         let (client, server) = tokio::join!(connector.connect(server_endpoint), listener.accept());
@@ -237,7 +237,7 @@ mod tests {
         let mut small = [0_u8; 4];
         assert!(matches!(
             server.recv(&mut small).await,
-            Err(MockCspError::BufferTooSmall { .. })
+            Err(MockNetError::BufferTooSmall { .. })
         ));
         let mut large = [0_u8; 32];
         let length = server.recv(&mut large).await.unwrap();
@@ -246,8 +246,8 @@ mod tests {
 
     #[tokio::test]
     async fn cancelled_accept_does_not_break_listener() {
-        let server_endpoint = Endpoint::new(Address(510), 20);
-        let client_endpoint = Endpoint::new(Address(511), 63);
+        let server_endpoint = Endpoint::new(Address::new_unicast(510).unwrap(), 20);
+        let client_endpoint = Endpoint::new(Address::new_unicast(511).unwrap(), 63);
         let mut listener = TcpSessionListener::bind(server_endpoint).await.unwrap();
         let result = tokio::time::timeout(Duration::from_millis(20), listener.accept()).await;
         assert!(result.is_err());

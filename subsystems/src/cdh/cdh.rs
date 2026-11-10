@@ -90,17 +90,20 @@ where
             interval_sec: self.config.beacon_interval.as_secs() as u16,
             timestamp: Instant::now().as_millis(),
         };
-        let mut buf = [0_u8, 64];
+        let mut buf = [0_u8; 64];
         let payload = beacon.encode(&mut buf).unwrap();
         self.beacon_socket
             .send_to(self.beacon_endpoint(), payload)
             .await
             .unwrap();
+        info!("[SAT::CDH] sent beacon");
     }
 
     async fn handle_ground_session(&mut self, mut session: GroundL::Session) {
         let mut cmd_buf = [0_u8; 255];
         let mut response_buf = [0_u8; 255];
+
+        info!("[SAT::CDH] accepted GS session");
 
         loop {
             let length = match session.recv(&mut cmd_buf).await {
@@ -123,11 +126,15 @@ where
             if session.send(payload).await.is_err() {
                 break;
             }
+
+            info!("[SAT::CDH] sent response on GS command {:?}", response);
         }
+
+        info!("[SAT::CDH] GS session closed");
     }
 
     async fn handle_ground_command(&mut self, cmd: GroundCommand) -> GroundCommandResponse {
-        info!("handling ground command: {:?}", cmd);
+        info!("[SAT::CDH] received GS command {:?}", cmd);
         GroundCommandResponse::Received
     }
 

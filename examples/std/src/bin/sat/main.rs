@@ -1,43 +1,92 @@
-use examples_std::{
-    csp_demo::{
-        BEACON_INTERVAL_SECONDS, BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, COMMAND_PORT,
-        CspDatagramSocket, CspRdpListener, GROUND_ADDRESS, MTU, SATELLITE_ADDRESS, run_rdp_clock,
-    }, mock::{RadioBand, UdpCspInterface, UdpDatagramSocket}, peers::SAT_ADDR,
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, pubsub::PubSubChannel,
 };
-use sat_core::comm::{Address, Endpoint, address::BROADCAST_ADDRESS};
-use sat_csp::{RdpConfig, RdpResources, RunnerBuilder, StackResources};
-use sat_drivers::storage::RamStorage;
-use sat_subsystems::comm::{CommConfig, CommSystem};
+use embassy_time::Duration;
+use examples_std::{
+    mock::{TcpSessionListener, UdpDatagramSocket},
+    peers::{BEACON_INTERVAL_SECS, BEACON_PORT, CMD_PORT, GS_ADDR, SAT_ADDR},
+};
+use sat_core::{
+    adcs::{AdcsCommand, AdcsEvent},
+    eps::{EpsCommand, EpsEvent},
+    net::Endpoint,
+};
 
-const CLIENT_RECORD_MAX_SIZE: usize = 300;
-const CLIENT_RECORD_CAPACITY: usize = 16;
+use sat_drivers::storage::RamStorage;
+use sat_subsystems::cdh::{CdhConfig, CdhSystem, SubsystemLink, SubsystemsBundle};
+
+const COMMAND_QUEUE_DEPTH: usize = 4;
+const EVENT_QUEUE_DEPTH: usize = 4;
+const EVENT_SUBSCRIBERS: usize = 4;
+const EVENT_PUBLISHERS: usize = 4;
+
+const STORAGE_ENTRY_SIZE: usize = 300;
+const STORAGE_DEPTH: usize = 16;
+
+type AdcsCommandChannel = Channel<CriticalSectionRawMutex, AdcsCommand, COMMAND_QUEUE_DEPTH>;
+type AdcsEventChannel = PubSubChannel<
+    CriticalSectionRawMutex,
+    AdcsEvent,
+    EVENT_QUEUE_DEPTH,
+    EVENT_SUBSCRIBERS,
+    EVENT_PUBLISHERS,
+>;
+type EpsCommandChannel = Channel<CriticalSectionRawMutex, EpsCommand, COMMAND_QUEUE_DEPTH>;
+type EpsEventChannel = PubSubChannel<
+    CriticalSectionRawMutex,
+    EpsEvent,
+    EVENT_QUEUE_DEPTH,
+    EVENT_SUBSCRIBERS,
+    EVENT_PUBLISHERS,
+>;
+
+static ADCS_COMMANDS: AdcsCommandChannel = AdcsCommandChannel::new();
+static ADCS_EVENTS: AdcsEventChannel = AdcsEventChannel::new();
+static EPS_COMMANDS: EpsCommandChannel = EpsCommandChannel::new();
+static EPS_EVENTS: EpsEventChannel = EpsEventChannel::new();
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     env_logger::init();
 
-    let peers = [SAT_ADDR, ]
+    let beacon_socket = UdpDatagramSocket::bind(Endpoint::new(SAT_ADDR, BEACON_PORT), &[GS_ADDR])
+        .await
+        .unwrap();
+    let ground_listener = TcpSessionListener::bind(Endpoint::new(SAT_ADDR, CMD_PORT))
+        .await
+        .unwrap();
 
-    let client_socket = UdpDatagramSocket::bind(Endpoint::new(Address(0), 0), );
-
-    let mut comm_system = CommSystem::new(
-        CspDatagramSocket::new(client_socket),
-        CspDatagramSocket::new(ground_socket),
-        CspRdpListener::new(command_listener),
-        client_storage,
-        CommConfig {
-            sat_addr: Address(u32::from(SATELLITE_ADDRESS)),
-            beacon_interval_sec: BEACON_INTERVAL_SECONDS,
-            client_beacon_destination: beacon_destination,
-            ground_beacon_destination: beacon_destination,
+    let subsystems = SubsystemsBundle {
+        adcs: SubsystemLink {
+            cmd_tx: ADCS_COMMANDS.sender(),
+            event_rx: ADCS_EVENTS.subscriber().unwrap(),
         },
+        eps: SubsystemLink {
+            cmd_tx: EPS_COMMANDS.sender(),
+            event_rx: EPS_EVENTS.subscriber().unwrap(),
+        },
+    };
+
+    // TODO: передать эти handles в реальные AdcsSystem и EpsSystem.
+    let _adcs_handles = (ADCS_COMMANDS.receiver(), ADCS_EVENTS.publisher().unwrap());
+    let _eps_handles = (EPS_COMMANDS.receiver(), EPS_EVENTS.publisher().unwrap());
+
+    let cdh_config = CdhConfig {
+        beacon_interval: Duration::from_secs(u64::from(BEACON_INTERVAL_SECS)),
+        satellite_address: SAT_ADDR,
+        beacon_port: BEACON_PORT,
+    };
+    let platform_storage = RamStorage::<STORAGE_ENTRY_SIZE, STORAGE_DEPTH>::new();
+    let iot_storage = RamStorage::<STORAGE_ENTRY_SIZE, STORAGE_DEPTH>::new();
+
+    let mut cdh = CdhSystem::new(
+        cdh_config,
+        subsystems,
+        beacon_socket,
+        ground_listener,
+        platform_storage,
+        iot_storage,
     );
 
-    println!("satellite: running");
-    tokio::select! {
-        result = runner_435.run() => panic!("435 Runner stopped: {result:?}"),
-        result = runner_868.run() => panic!("868 Runner stopped: {result:?}"),
-        result = comm_system.run() => match result {},
-        result = run_rdp_clock(&rdp_435) => match result {},
-    }
+    cdh.run().await;
 }

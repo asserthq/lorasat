@@ -1,9 +1,7 @@
-use sat_core::net::{
-    Address, DatagramMetadata, DatagramSocket, Endpoint, address::BROADCAST_ADDRESS,
-};
+use sat_core::net::{Address, DatagramMetadata, DatagramSocket, Endpoint};
 use tokio::net::UdpSocket;
 
-use super::{MockCspError, address::endpoint_from_socket, address::socket_address};
+use super::{MockNetError, address::endpoint_from_socket, address::socket_address};
 
 const MAX_DATAGRAM_SIZE: usize = 4_096;
 
@@ -15,7 +13,7 @@ pub struct UdpDatagramSocket {
 }
 
 impl UdpDatagramSocket {
-    pub async fn bind(local: Endpoint, broadcast_peers: &[Address]) -> Result<Self, MockCspError> {
+    pub async fn bind(local: Endpoint, broadcast_peers: &[Address]) -> Result<Self, MockNetError> {
         let socket = UdpSocket::bind(socket_address(local)?).await?;
         Ok(Self {
             socket,
@@ -27,17 +25,17 @@ impl UdpDatagramSocket {
 }
 
 impl DatagramSocket for UdpDatagramSocket {
-    type Error = MockCspError;
+    type Error = MockNetError;
 
     async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error> {
         if payload.len() > MAX_DATAGRAM_SIZE {
-            return Err(MockCspError::MessageTooLarge {
+            return Err(MockNetError::MessageTooLarge {
                 length: payload.len(),
                 maximum: MAX_DATAGRAM_SIZE,
             });
         }
 
-        if destination.addr() == BROADCAST_ADDRESS {
+        if destination.addr().is_broadcast() {
             for peer in &self.broadcast_peers {
                 let endpoint = Endpoint::new(*peer, destination.port());
                 self.socket
@@ -67,7 +65,7 @@ impl DatagramSocket for UdpDatagramSocket {
         if payload.len() > buffer.len() {
             let required = payload.len();
             self.pending = Some((source, payload));
-            return Err(MockCspError::BufferTooSmall {
+            return Err(MockNetError::BufferTooSmall {
                 required,
                 available: buffer.len(),
             });
@@ -84,8 +82,8 @@ mod tests {
 
     #[tokio::test]
     async fn round_trip_preserves_source_endpoint() {
-        let satellite_endpoint = Endpoint::new(Address(501), 11);
-        let ground_endpoint = Endpoint::new(Address(502), 20);
+        let satellite_endpoint = Endpoint::new(Address::new_unicast(501).unwrap(), 11);
+        let ground_endpoint = Endpoint::new(Address::new_unicast(502).unwrap(), 20);
         let mut satellite = UdpDatagramSocket::bind(satellite_endpoint, &[])
             .await
             .unwrap();
@@ -101,8 +99,8 @@ mod tests {
 
     #[tokio::test]
     async fn buffer_error_keeps_complete_message() {
-        let sender_endpoint = Endpoint::new(Address(503), 11);
-        let receiver_endpoint = Endpoint::new(Address(504), 11);
+        let sender_endpoint = Endpoint::new(Address::new_unicast(503).unwrap(), 11);
+        let receiver_endpoint = Endpoint::new(Address::new_unicast(504).unwrap(), 11);
         let mut sender = UdpDatagramSocket::bind(sender_endpoint, &[]).await.unwrap();
         let mut receiver = UdpDatagramSocket::bind(receiver_endpoint, &[])
             .await
@@ -116,7 +114,7 @@ mod tests {
         let mut small = [0_u8; 4];
         assert!(matches!(
             receiver.recv_from(&mut small).await,
-            Err(MockCspError::BufferTooSmall { .. })
+            Err(MockNetError::BufferTooSmall { .. })
         ));
         let mut large = [0_u8; 64];
         let metadata = receiver.recv_from(&mut large).await.unwrap();
@@ -125,17 +123,23 @@ mod tests {
 
     #[tokio::test]
     async fn broadcast_reaches_configured_peers() {
-        let sender_endpoint = Endpoint::new(Address(505), 11);
-        let first_endpoint = Endpoint::new(Address(506), 10);
-        let second_endpoint = Endpoint::new(Address(507), 10);
-        let mut sender = UdpDatagramSocket::bind(sender_endpoint, &[Address(506), Address(507)])
-            .await
-            .unwrap();
+        let sender_endpoint = Endpoint::new(Address::new_unicast(505).unwrap(), 11);
+        let first_endpoint = Endpoint::new(Address::new_unicast(506).unwrap(), 10);
+        let second_endpoint = Endpoint::new(Address::new_unicast(507).unwrap(), 10);
+        let mut sender = UdpDatagramSocket::bind(
+            sender_endpoint,
+            &[
+                Address::new_unicast(506).unwrap(),
+                Address::new_unicast(507).unwrap(),
+            ],
+        )
+        .await
+        .unwrap();
         let mut first = UdpDatagramSocket::bind(first_endpoint, &[]).await.unwrap();
         let mut second = UdpDatagramSocket::bind(second_endpoint, &[]).await.unwrap();
 
         sender
-            .send_to(Endpoint::new(BROADCAST_ADDRESS, 10), b"beacon")
+            .send_to(Endpoint::broadcast(10), b"beacon")
             .await
             .unwrap();
 
