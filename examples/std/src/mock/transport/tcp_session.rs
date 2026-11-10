@@ -1,6 +1,6 @@
 use std::io;
 
-use sat_core::comm::{Endpoint, ReliableMessageSession, SessionConnector, SessionListener};
+use sat_core::net::{Endpoint, ReliableSession, SessionConnector, SessionListener};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{
@@ -20,10 +20,6 @@ const MAX_SESSION_MESSAGE_SIZE: usize = 65_535;
 const SESSION_QUEUE_DEPTH: usize = 8;
 const LISTENER_QUEUE_DEPTH: usize = 4;
 
-/// TCP reliable message session with explicit message framing.
-///
-/// A background reader owns the TCP read half and places complete messages into
-/// a bounded queue. Therefore cancelling `recv` cannot consume a partial frame.
 pub struct TcpSession {
     peer: Endpoint,
     writer: OwnedWriteHalf,
@@ -38,7 +34,7 @@ impl Drop for TcpSession {
     }
 }
 
-impl ReliableMessageSession for TcpSession {
+impl ReliableSession for TcpSession {
     type Error = MockCspError;
 
     fn peer(&self) -> Endpoint {
@@ -200,7 +196,7 @@ async fn read_messages(
 mod tests {
     use std::time::Duration;
 
-    use sat_core::comm::{Address, ReliableMessageSession, SessionConnector, SessionListener};
+    use sat_core::net::{Address, ReliableSession, SessionConnector, SessionListener};
 
     use super::*;
 

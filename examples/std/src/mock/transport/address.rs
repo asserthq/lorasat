@@ -1,6 +1,6 @@
 use std::{io, net::SocketAddr};
 
-use sat_core::comm::{Address, Endpoint, address::BROADCAST_ADDRESS};
+use sat_core::net::{Address, Endpoint, address::BROADCAST_ADDRESS};
 
 use super::MockCspError;
 

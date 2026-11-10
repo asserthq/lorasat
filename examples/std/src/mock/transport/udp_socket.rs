@@ -1,4 +1,4 @@
-use sat_core::comm::{
+use sat_core::net::{
     Address, DatagramMetadata, DatagramSocket, Endpoint, address::BROADCAST_ADDRESS,
 };
 use tokio::net::UdpSocket;
@@ -7,10 +7,6 @@ use super::{MockCspError, address::endpoint_from_socket, address::socket_address
 
 const MAX_DATAGRAM_SIZE: usize = 4_096;
 
-/// UDP implementation of the application-facing datagram trait.
-///
-/// This bypasses CSP completely. It is useful for testing subsystem logic with
-/// real std sockets while preserving endpoint metadata and message boundaries.
 pub struct UdpDatagramSocket {
     socket: UdpSocket,
     broadcast_peers: Vec<Address>,

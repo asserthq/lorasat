@@ -1,3 +1,5 @@
+use sat_core::net::Address;
+
 pub const MTU: usize = 255;
 pub const SAT_ADDR: Address = Address(1);
 pub const GS_ADDR: Address = Address(2);

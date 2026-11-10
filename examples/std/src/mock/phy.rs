@@ -3,6 +3,8 @@ use std::{io, net::SocketAddr};
 use sat_csp::CspInterface;
 use tokio::net::UdpSocket;
 
+const MAX_UDP_DATAGRAM_SIZE: usize = 65_535;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RadioBand {
     Mhz435,
@@ -22,26 +24,32 @@ fn socket_address(band: RadioBand, node: u16) -> SocketAddr {
     SocketAddr::from(([127, 0, 0, 1], band.port_base() + node))
 }
 
-/// UDP-backed packet interface for running the real CSP stack on std.
-///
-/// One UDP datagram represents one complete lower-layer frame. Sending copies
-/// the frame to every configured peer, matching the point-to-multipoint behavior
-/// needed by the LoRa examples. CSP addressing and filtering remain inside the
-/// real `sat-csp::Runner`.
 pub struct UdpCspInterface {
     socket: UdpSocket,
     peers: Vec<SocketAddr>,
+    receive_buffer: Vec<u8>,
 }
 
 impl UdpCspInterface {
     pub async fn bind(band: RadioBand, local: u16, peers: &[u16]) -> io::Result<Self> {
-        let socket = UdpSocket::bind(socket_address(band, local)).await?;
-        let peers = peers
+        let peers: Vec<_> = peers
             .iter()
             .copied()
             .map(|peer| socket_address(band, peer))
             .collect();
-        Ok(Self { socket, peers })
+        Self::bind_udp(socket_address(band, local), &peers).await
+    }
+
+    pub async fn bind_udp(local: SocketAddr, peers: &[SocketAddr]) -> io::Result<Self> {
+        Ok(Self {
+            socket: UdpSocket::bind(local).await?,
+            peers: peers.to_vec(),
+            receive_buffer: vec![0; MAX_UDP_DATAGRAM_SIZE],
+        })
+    }
+
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.socket.local_addr()
     }
 }
 
@@ -56,7 +64,17 @@ impl CspInterface for UdpCspInterface {
     }
 
     async fn receive(&mut self, frame: &mut [u8]) -> Result<usize, Self::Error> {
-        let (length, _) = self.socket.recv_from(frame).await?;
+        let length = self.socket.recv(&mut self.receive_buffer).await?;
+        if length > frame.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "UDP frame requires {length} bytes; buffer has {}",
+                    frame.len()
+                ),
+            ));
+        }
+        frame[..length].copy_from_slice(&self.receive_buffer[..length]);
         Ok(length)
     }
 }
@@ -84,6 +102,28 @@ mod tests {
         assert_eq!(&buffer[..length], b"complete CSP frame");
         let length = second.receive(&mut buffer).await.unwrap();
         assert_eq!(&buffer[..length], b"complete CSP frame");
+    }
+
+    #[tokio::test]
+    async fn short_buffer_discards_whole_frame_without_partial_copy() {
+        tokio::time::timeout(std::time::Duration::from_secs(3), async {
+            let local = SocketAddr::from(([127, 0, 0, 1], 0));
+            let mut receiver = UdpCspInterface::bind_udp(local, &[]).await.unwrap();
+            let mut sender = UdpCspInterface::bind_udp(local, &[receiver.local_addr().unwrap()])
+                .await
+                .unwrap();
+            sender.send(&[0xff; 512]).await.unwrap();
+            let mut small = [0xa5; 4];
+            let error = receiver.receive(&mut small).await.unwrap_err();
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+            assert_eq!(small, [0xa5; 4]);
+
+            sender.send(b"next").await.unwrap();
+            let length = receiver.receive(&mut small).await.unwrap();
+            assert_eq!(&small[..length], b"next");
+        })
+        .await
+        .expect("UDP frame small-buffer test timed out");
     }
 
     #[tokio::test]

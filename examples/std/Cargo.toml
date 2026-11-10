@@ -4,10 +4,23 @@ name = "examples-std"
 edition = "2024"
 version = "0.1.0"
 
+[features]
+subsystems = ["dep:sat_subsystems"]
+
+[[bin]]
+name = "sat"
+path = "src/bin/sat/main.rs"
+required-features = ["subsystems"]
+
+[[test]]
+name = "comm_system"
+path = "tests/comm_system.rs"
+required-features = ["subsystems"]
+
 [dependencies]
 sat_core = { package = "sat-core", path = "../../core" }
 sat_drivers = { package = "sat-drivers", path = "../../drivers" }
-sat_subsystems = { package = "sat-subsystems", path = "../../subsystems" }
+sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", optional = true }
 sat_csp = { package = "sat-csp", path = "../../csp" }
 
 embassy-futures = "0.1.2"

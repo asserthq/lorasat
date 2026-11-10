@@ -1,6 +1,6 @@
 use std::io;
 
-use sat_core::comm::Endpoint;
+use sat_core::net::Endpoint;
 
 #[derive(Debug)]
 pub enum MockCspError {

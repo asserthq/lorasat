@@ -1,5 +1,5 @@
-use sat_core::comm::{
-    Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableMessageSession, SessionListener,
+use sat_core::net::{
+    Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession, SessionListener,
     address::BROADCAST_ADDRESS,
 };
 use sat_csp::{
@@ -111,7 +111,7 @@ pub struct CspRdpSession<'a, const MTU: usize> {
     pending: Option<RdpMessage<MTU>>,
 }
 
-impl<const MTU: usize> ReliableMessageSession for CspRdpSession<'_, MTU> {
+impl<const MTU: usize> ReliableSession for CspRdpSession<'_, MTU> {
     type Error = CspRdpSessionError;
 
     fn peer(&self) -> Endpoint {
