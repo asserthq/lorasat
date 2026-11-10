@@ -4,7 +4,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use sat_core::comm::{Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession};
+use sat_core::net::{Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession};
 
 fn run_ready<F: Future>(future: F) -> F::Output {
     let mut future = pin!(future);
