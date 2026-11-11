@@ -785,19 +785,14 @@ name = "examples-std"
 version = "0.1.0"
 dependencies = [
  "critical-section",
- "defmt 1.1.1",
- "embassy-futures",
  "embassy-sync",
  "embassy-time",
  "env_logger",
- "heapless 0.9.3",
- "log",
- "postcard",
  "sat-core",
  "sat-csp",
  "sat-drivers",
  "sat-subsystems",
- "serde",
+ "test-utils",
  "tokio",
 ]
 
@@ -988,6 +983,7 @@ name = "ground-station"
 version = "0.1.0"
 dependencies = [
  "defmt 1.1.1",
+ "defmt-or-log",
  "embassy-futures",
  "embassy-time",
  "env_logger",
@@ -1488,6 +1484,7 @@ dependencies = [
  "defmt 1.1.1",
  "heapless 0.9.3",
  "libm",
+ "log",
  "nalgebra",
  "postcard",
  "serde",
@@ -1498,9 +1495,11 @@ name = "sat-csp"
 version = "0.1.0"
 dependencies = [
  "critical-section",
+ "defmt 1.1.1",
  "embassy-futures",
  "embassy-sync",
  "futures",
+ "log",
 ]
 
 [[package]]
@@ -1509,6 +1508,7 @@ version = "0.1.0"
 dependencies = [
  "critical-section",
  "defmt 1.1.1",
+ "defmt-or-log",
  "drv8833-driver",
  "embassy-futures",
  "embassy-sync",
@@ -1520,6 +1520,7 @@ dependencies = [
  "embedded-storage-async",
  "futures",
  "heapless 0.9.3",
+ "log",
  "lora-phy",
  "mmc5983_rs",
  "nalgebra",
@@ -1792,6 +1793,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "test-utils"
+version = "0.1.0"
+dependencies = [
+ "sat-core",
+ "sat-csp",
+ "tokio",
 ]
 
 [[package]]

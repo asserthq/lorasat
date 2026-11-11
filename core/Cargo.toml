@@ -9,10 +9,16 @@ version = "0.1.0"
 [lints.rust]
 dead_code = "allow"
 
+[features]
+default = ["defmt"]
+defmt = []
+log = ["dep:log"]
+
 [dependencies]
 nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
 libm = "0.2.16"
 defmt = "1.0.1"
+log = { version = "0.4", optional = true }
 serde = { version = "1.0.229", default-features = false,  features = ["derive"] }
 postcard = { version = "1.1.3", default-features = false }
 heapless = { version = "0.9.3", features = ["serde"] }

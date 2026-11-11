@@ -1,11 +1,9 @@
-use examples_std::{
-    mock::UdpDatagramSocket,
-    peers::{BEACON_PORT, GS_ADDR, SAT_ADDR},
-};
+use examples_std::peers::{BEACON_PORT, GS_ADDR, SAT_ADDR};
 use sat_core::{
     net::{DatagramSocket, Endpoint},
     protocol::Beacon,
 };
+use test_utils::host::net::UdpDatagramSocket;
 
 const BEACON_BUFFER_SIZE: usize = 64;
 

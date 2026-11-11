@@ -804,7 +804,7 @@ fn malformed_postcard_and_trailing_bytes_fail_without_deleting_records() {
 }
 
 async fn fifo_byte_prefix_recovery(remove: bool) {
-    use sat_core::storage::{QueueStorage as _, QueueErrorKind};
+    use sat_core::storage::{QueueErrorKind, QueueStorage as _};
     use sat_drivers::storage::SequentialQueue;
     use sequential_storage::{cache::Cache, queue::QueueStorage};
 

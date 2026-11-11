@@ -1,8 +1,8 @@
-use examples_std::{
-    csp_demo::{BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, MTU, SATELLITE_ADDRESS},
-    mock::{RadioBand, UdpCspInterface},
+use examples_std::csp_demo::{
+    BEACON_PORT, CLIENT_ADDRESS, CLIENT_DATA_PORT, MTU, SATELLITE_ADDRESS,
 };
 use sat_csp::{RunnerBuilder, StackResources};
+use test_utils::host::{RadioBand, UdpCspInterface};
 use tokio::time::{Duration, sleep};
 
 #[tokio::main(flavor = "current_thread")]

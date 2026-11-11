@@ -7,40 +7,50 @@ version = "0.1.0"
 [lib]
 
 [dependencies]
-sat_core = { package = "sat-core", path = "../core" }
-sat_drivers = { package = "sat-drivers", path = "../drivers" }
+sat_core = { package = "sat-core", path = "../core", default-features = false }
+sat_drivers = { package = "sat-drivers", path = "../drivers", default-features = false }
 
 nalgebra = { version = "0.35.0", default-features = false, features = ["libm"] }
-defmt = { version = "1.0.1", optional = true }
+defmt = "1.0.1"
 log = { version = "0.4", optional = true }
-defmt-or-log = "0.2.3"
+defmt-or-log = { version = "0.2.3", default-features = false }
 embassy-time = "0.5.1"
-embassy-futures = { version = "0.1.2", features = ["defmt"] }
+embassy-futures = "0.1.2"
 
-embedded-hal = { version = "1.0.0", features = ["defmt-03"] }
-embedded-hal-async = { version = "1.0.0", features = ["defmt-03"] }
-embedded-hal-bus = { version = "0.3.0", features = ["defmt-03"] }
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+embedded-hal-bus = "0.3.0"
 lora-phy = "3.0.1"
-embedded-sdmmc = { version = "0.7.0", default-features = false, features = ["defmt-log"] }
+embedded-sdmmc = { version = "0.7.0", default-features = false }
 serde = { version = "1.0.229", default-features = false,  features = ["derive"] }
 postcard = { version = "1.1.3", default-features = false }
 heapless = { version = "0.9.3", features = ["serde"] }
 embedded-io-async = "0.7"
-embassy-sync = { version = "0.8.0", features = ["defmt"]}
+embassy-sync = "0.8.0"
 
 [target.'cfg(not(target_os = "none"))'.dev-dependencies]
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 critical-section = { version = "1.2.0", features = ["std"] }
 defmt = { version = "1.0.1", features = ["unstable-test"] }
 
-# Дефолт — log-фасад: без установленного логгера макросы молчат.
-# defmt — логи через defmt (target): default-features = false, features = ["defmt"].
-# defmt + stdout вместе нельзя: defmt-or-log даст дубли макросов (E0119).
-#
-# Имена фич "log" и "defmt" обязательны: макросы defmt-or-log проверяют
-# cfg(feature = "log") / cfg(feature = "defmt") в контексте вызывающего крейта.
-# Обе фичи также подключают соответствующий крейт через dep:.
+# Embedded-сборки по умолчанию используют defmt. Host-крейты должны отключать
+# default features и явно включать log. Одновременно включать defmt и log нельзя.
 [features]
 default = ["defmt"]
-defmt = ["dep:defmt", "defmt-or-log/defmt"]
-log = ["dep:log", "defmt-or-log/log"]
+defmt = [
+    "defmt-or-log/defmt",
+    "sat_core/defmt",
+    "sat_drivers/defmt",
+    "embassy-futures/defmt",
+    "embassy-sync/defmt",
+    "embedded-hal/defmt-03",
+    "embedded-hal-async/defmt-03",
+    "embedded-hal-bus/defmt-03",
+    "embedded-sdmmc/defmt-log",
+]
+log = [
+    "dep:log",
+    "defmt-or-log/log",
+    "sat_core/log",
+    "sat_drivers/log",
+]

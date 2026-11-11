@@ -1,6 +1,9 @@
 pub mod csp_demo;
-pub mod mock;
-#[cfg(feature = "payload")]
+pub mod mock {
+    pub mod phy;
+
+    pub use phy::{RadioBand, UdpCspInterface};
+}
 pub mod payload_demo;
 pub mod peers;
 pub mod storage_demo;

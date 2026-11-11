@@ -10,14 +10,16 @@ name = "stm32f401_lib"
 harness = false
 
 [features]
-default = []
+default = ["defmt"]
+defmt = ["sat_core/defmt", "sat_drivers/defmt", "sat_csp/defmt"]
+log = ["sat_core/log", "sat_drivers/log", "sat_csp/log"]
 # Opt in only after reserving the test region documented in IOT_HARDWARE_RU.md.
 iot-flash-write = []
 
 [dependencies]
-sat_core = { package = "sat-core", path = "../../core" }
-sat_drivers = { package = "sat-drivers", path = "../../drivers" }
-sat_csp = { package = "sat-csp", path = "../../csp" }
+sat_core = { package = "sat-core", path = "../../core", default-features = false }
+sat_drivers = { package = "sat-drivers", path = "../../drivers", default-features = false }
+sat_csp = { package = "sat-csp", path = "../../csp", default-features = false }
 
 embassy-stm32 = { version = "0.6.0", features = [ "defmt", "stm32f401rc", "unstable-pac", "memory-x", "time-driver-any", "time", "exti" ]  }
 embassy-executor = { version = "0.10.0", features = ["platform-cortex-m", "executor-thread", "defmt"] }

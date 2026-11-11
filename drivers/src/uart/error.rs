@@ -1,6 +1,7 @@
 use core::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, defmt::Format)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(defmt::Format)]
 pub enum Error {
     Read,
     Write,

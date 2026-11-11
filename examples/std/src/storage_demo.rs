@@ -47,12 +47,10 @@ pub async fn receive_and_store<D: DatagramSocket, S: QueueStorage>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        csp_demo::{CspDatagramError, CspDatagramSocket},
-        mock::UdpCspInterface,
-    };
+    use crate::csp_demo::{CspDatagramError, CspDatagramSocket};
     use sat_csp::{Runner, RunnerBuilder, StackResources};
     use sat_drivers::storage::{RamStorage, StorageError};
+    use test_utils::host::UdpCspInterface;
     use tokio::time::timeout;
 
     type Resources = StackResources<MTU, 2, 1, 2>;

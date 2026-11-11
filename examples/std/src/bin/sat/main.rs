@@ -2,10 +2,7 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, pubsub::PubSubChannel,
 };
 use embassy_time::Duration;
-use examples_std::{
-    mock::{TcpSessionListener, UdpDatagramSocket},
-    peers::{BEACON_INTERVAL_SECS, BEACON_PORT, CMD_PORT, GS_ADDR, SAT_ADDR},
-};
+use examples_std::peers::{BEACON_INTERVAL_SECS, BEACON_PORT, CMD_PORT, GS_ADDR, SAT_ADDR};
 use sat_core::{
     adcs::{AdcsCommand, AdcsEvent},
     eps::{EpsCommand, EpsEvent},
@@ -14,6 +11,7 @@ use sat_core::{
 
 use sat_drivers::storage::RamStorage;
 use sat_subsystems::cdh::{CdhConfig, CdhSystem, SubsystemLink, SubsystemsBundle};
+use test_utils::host::net::{TcpSessionListener, UdpDatagramSocket};
 
 const COMMAND_QUEUE_DEPTH: usize = 4;
 const EVENT_QUEUE_DEPTH: usize = 4;

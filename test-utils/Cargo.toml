@@ -1,0 +1,17 @@
+[package]
+authors = ["asserthq <sanya2003ogorodov@gmail.com>"]
+name = "test-utils"
+edition = "2024"
+version = "0.1.0"
+
+[features]
+default = []
+std = ["dep:sat_csp", "dep:tokio"]
+defmt = ["sat_core/defmt", "sat_csp?/defmt"]
+log = ["sat_core/log", "sat_csp?/log"]
+
+[dependencies]
+sat_core = { package = "sat-core", path = "../core", default-features = false }
+sat_csp = { package = "sat-csp", path = "../csp", default-features = false, optional = true }
+
+tokio = { version = "1", optional = true, features = ["net", "time", "rt", "macros", "io-util", "sync"] }

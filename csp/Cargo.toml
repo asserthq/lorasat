@@ -7,9 +7,16 @@ description = "Small no_std CSP v2 protocol implementation"
 
 [lib]
 
+[features]
+default = ["defmt"]
+defmt = ["dep:defmt", "embassy-futures/defmt", "embassy-sync/defmt"]
+log = ["dep:log"]
+
 [dependencies]
 embassy-futures = "0.1.2"
 embassy-sync = "0.8.0"
+defmt = { version = "1.0.1", optional = true }
+log = { version = "0.4", optional = true }
 
 [dev-dependencies]
 critical-section = { version = "1.2.0", features = ["std"] }

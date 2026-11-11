@@ -1,4 +1,4 @@
-use defmt::debug;
+use defmt_or_log::debug;
 use embedded_hal::digital::OutputPin;
 use sat_csp::CspInterface;
 

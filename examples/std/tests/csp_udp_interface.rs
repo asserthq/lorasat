@@ -1,5 +1,5 @@
-use examples_std::mock::{RadioBand, UdpCspInterface};
 use sat_csp::{RunnerBuilder, StackResources};
+use test_utils::host::{RadioBand, UdpCspInterface};
 
 const MTU: usize = 255;
 

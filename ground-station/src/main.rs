@@ -1,4 +1,4 @@
-use log::*;
+use defmt_or_log::*;
 #[allow(unused_imports)]
 use sandbox_pc::mock::{PhyRadioUDP, TransportMockTCP};
 use sat_core::comm::address::Address;

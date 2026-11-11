@@ -2,7 +2,6 @@ use std::io::{self, Write};
 
 use examples_std::{
     csp_demo::CspDatagramSocket,
-    mock::UdpCspInterface,
     storage_demo::{
         MTU, RECEIVER_ADDRESS, RECEIVER_ENDPOINT, SEND_INTERVAL, SENDER_ADDRESS, SENDER_NODE,
         SENDER_PORT,
@@ -10,6 +9,7 @@ use examples_std::{
 };
 use sat_core::net::DatagramSocket;
 use sat_csp::{RunnerBuilder, StackResources};
+use test_utils::host::UdpCspInterface;
 use tokio::time::sleep;
 
 #[tokio::main(flavor = "current_thread")]

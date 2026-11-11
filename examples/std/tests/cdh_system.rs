@@ -4,7 +4,7 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel, pubsub::PubSubChannel,
 };
 use embassy_time::Duration;
-use examples_std::mock::{TcpSessionConnector, TcpSessionListener, UdpDatagramSocket};
+
 use sat_core::{
     adcs::{AdcsCommand, AdcsEvent},
     eps::{EpsCommand, EpsEvent},
@@ -13,6 +13,7 @@ use sat_core::{
 };
 use sat_drivers::storage::RamStorage;
 use sat_subsystems::cdh::{CdhConfig, CdhSystem, SubsystemLink, SubsystemsBundle};
+use test_utils::host::net::{TcpSessionConnector, TcpSessionListener, UdpDatagramSocket};
 
 const SATELLITE: Address = Address::new_unicast(601).unwrap();
 const GROUND: Address = Address::new_unicast(602).unwrap();

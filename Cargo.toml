@@ -5,6 +5,7 @@ members = [
     "drivers",
     "subsystems",
     "firmware",
+    "test-utils",
 
     "client-device",
     "ground-station",

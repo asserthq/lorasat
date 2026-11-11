@@ -78,17 +78,11 @@ async fn main(_spawner: Spawner) {
 
     loop {
         info!("applying (1, 1, 1)");
-        coils
-            .apply_pwm(Vector3::new(1.0, 1.0, 1.0))
-            .await
-            .unwrap();
+        coils.apply_pwm(Vector3::new(1.0, 1.0, 1.0)).await.unwrap();
         Timer::after_secs(5).await;
 
         info!("applying (0, 0, 0)");
-        coils
-            .apply_pwm(Vector3::new(0.0, 0.0, 0.0))
-            .await
-            .unwrap();
+        coils.apply_pwm(Vector3::new(0.0, 0.0, 0.0)).await.unwrap();
         Timer::after_secs(5).await;
 
         info!("applying (-1, -1, -1)");
@@ -114,10 +108,7 @@ async fn main(_spawner: Spawner) {
         }
 
         info!("applying (0, 0, 0)");
-        coils
-            .apply_pwm(Vector3::new(0.0, 0.0, 0.0))
-            .await
-            .unwrap();
+        coils.apply_pwm(Vector3::new(0.0, 0.0, 0.0)).await.unwrap();
         Timer::after_secs(5).await;
     }
 }

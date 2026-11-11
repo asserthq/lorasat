@@ -2,7 +2,6 @@ use std::io::{self, Write};
 
 use examples_std::{
     csp_demo::CspDatagramSocket,
-    mock::UdpCspInterface,
     storage_demo::{
         ENTRY_SIZE, MTU, QUEUE_DEPTH, RECEIVE_BUFFER_SIZE, RECEIVER_ADDRESS, RECEIVER_NODE,
         RECEIVER_PORT, ReceiveStoreError, receive_and_store,
@@ -11,6 +10,7 @@ use examples_std::{
 use sat_core::{net::DatagramSocket, storage::QueueStorage};
 use sat_csp::{RunnerBuilder, StackResources};
 use sat_drivers::storage::RamStorage;
+use test_utils::host::UdpCspInterface;
 use tokio::time::{Duration, sleep};
 
 #[tokio::main(flavor = "current_thread")]

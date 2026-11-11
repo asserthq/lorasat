@@ -100,28 +100,21 @@ Storage-тесты используют настоящий CSP Runner повер
 сохранение сообщения при малом выходном буфере и максимальный payload 256 байт.
 Сетевые ожидания этих тестов ограничены deadline.
 
-Бинарник `sat` и тест `cdh_system` включаются только через
-`--features subsystems`. Тест использует текущие интерфейсы CDH и транспорта;
-`src/bin/sat/main.rs` остаётся незавершённым. Storage-демо не требует этой feature.
+Все host-бинарники и интеграционные тесты доступны без Cargo features.
+Нужный сценарий выбирается через `--bin` или `--test`.
 
 ## ПН: отдельные TX и RX через CSP/UDP
-
-Feature `payload` включает targets `payload_tx`, `payload_rx` и `payload_commands`,
-но не включает `sat` и `cdh_system`. Features `payload` и `subsystems` — пустые
-маркеры для `required-features`; зависимости `sat_subsystems`, `sat_drivers`
-и `embassy-sync` обязательны. Для `sat_subsystems` отключены default features
-и включён только `log`, без одновременного выбора `defmt`.
 
 В первом терминале, из корня workspace:
 
 ```sh
-cargo run -p examples-std --bin payload_rx --features payload --locked --offline
+cargo run -p examples-std --bin payload_rx --locked --offline
 ```
 
 Во втором:
 
 ```sh
-cargo run -p examples-std --bin payload_tx --features payload --locked --offline
+cargo run -p examples-std --bin payload_tx --locked --offline
 ```
 
 Обе программы запускаются без аргументов и работают до `Ctrl+C`.
@@ -309,7 +302,7 @@ bind, например занятый UDP-порт, завершает прог�
 Проверки:
 
 ```sh
-cargo test -p examples-std --test payload_commands --features payload --locked --offline
+cargo test -p examples-std --test payload_commands --locked --offline
 cargo test -p sat-subsystems --lib payload --locked --offline
 ```
 

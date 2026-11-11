@@ -799,7 +799,7 @@ fn satellite_storage_retains_typed_queues_and_native_postcard_settings_after_reo
 
 #[test]
 fn core_storage_adapter_retains_opaque_entries_and_isolates_client_clear_on_real_driver() {
-    use sat_core::storage::{QueueStorage, QueueErrorKind};
+    use sat_core::storage::{QueueErrorKind, QueueStorage};
     use sat_drivers::storage::{Postcard, SatelliteStorage, SequentialQueue, StorageLayout};
 
     async fn append_and_check<S: QueueStorage>(storage: &mut S, payload: &[u8]) {
