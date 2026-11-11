@@ -40,6 +40,6 @@ defmt = { version = "1.0.1", features = ["unstable-test"] }
 # cfg(feature = "log") / cfg(feature = "defmt") в контексте вызывающего крейта.
 # Обе фичи также подключают соответствующий крейт через dep:.
 [features]
-default = ["log"]
+default = ["defmt"]
 defmt = ["dep:defmt", "defmt-or-log/defmt"]
 log = ["dep:log", "defmt-or-log/log"]

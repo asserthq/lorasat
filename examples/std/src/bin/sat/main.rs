@@ -47,7 +47,7 @@ static EPS_EVENTS: EpsEventChannel = EpsEventChannel::new();
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let beacon_socket = UdpDatagramSocket::bind(Endpoint::new(SAT_ADDR, BEACON_PORT), &[GS_ADDR])
         .await
