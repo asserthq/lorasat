@@ -53,6 +53,22 @@ impl<const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> DatagramSoc
 {
     type Error = CspDatagramError;
 
+    fn discard_oversized(&mut self, capacity: usize) -> Option<DatagramMetadata> {
+        let datagram = self.pending.as_ref()?;
+        if datagram.payload().len() <= capacity {
+            return None;
+        }
+        let metadata = DatagramMetadata::new(
+            Endpoint::new(
+                Address::new(datagram.source()).expect("CSP source address must be valid"),
+                datagram.source_port(),
+            ),
+            datagram.payload().len(),
+        );
+        self.pending = None;
+        Some(metadata)
+    }
+
     async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error> {
         let address = destination.addr().get();
         if address > MAX_NODE_ID {
