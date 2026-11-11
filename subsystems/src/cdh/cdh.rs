@@ -77,7 +77,8 @@ where
                     self.send_beacon().await;
                 }
                 Either::Second(Ok(session)) => {
-                    self.handle_ground_session(session).await;
+                    self.handle_ground_session(session, &mut beacon_ticker)
+                        .await;
                 }
                 Either::Second(Err(_)) => {}
             }
@@ -99,18 +100,24 @@ where
         info!("[SAT::CDH] sent beacon");
     }
 
-    async fn handle_ground_session(&mut self, mut session: GroundL::Session) {
+    async fn handle_ground_session(
+        &mut self,
+        mut session: GroundL::Session,
+        beacon_ticker: &mut Ticker,
+    ) {
         let mut cmd_buf = [0_u8; 255];
         let mut response_buf = [0_u8; 255];
 
         info!("[SAT::CDH] accepted GS session");
 
         loop {
-            let length = match session.recv(&mut cmd_buf).await {
-                Ok(length) => length,
-                Err(_) => {
-                    break;
+            let length = match select(beacon_ticker.next(), session.recv(&mut cmd_buf)).await {
+                Either::First(_) => {
+                    self.send_beacon().await;
+                    continue;
                 }
+                Either::Second(Ok(length)) => length,
+                Either::Second(Err(_)) => break,
             };
 
             let response = match GroundCommand::decode(&cmd_buf[..length]) {

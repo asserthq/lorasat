@@ -7,8 +7,8 @@
 //! owns one packet [`CspInterface`], while application code uses bounded-queue
 //! [`Socket`] handles. No executor is selected by this crate.
 //!
-//! RDP supports one connection and one confirmed message per handle. Other
-//! optional protocol flags remain rejected until their trailers are implemented.
+//! RDP supports one connection with sequential confirmed messages. Other optional
+//! protocol flags remain rejected until their trailers are implemented.
 
 mod error;
 mod header;

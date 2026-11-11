@@ -51,6 +51,10 @@ impl UdpCspInterface {
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.socket.local_addr()
     }
+
+    pub fn set_peers(&mut self, peers: &[SocketAddr]) {
+        self.peers = peers.to_vec();
+    }
 }
 
 impl CspInterface for UdpCspInterface {

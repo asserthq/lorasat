@@ -43,7 +43,6 @@ impl RdpConfig {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RdpError {
     Packet(Error),
-    MessageAlreadySent,
     TimedOut,
 }
 
@@ -57,9 +56,6 @@ impl fmt::Display for RdpError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Packet(error) => write!(formatter, "invalid RDP packet: {error}"),
-            Self::MessageAlreadySent => {
-                formatter.write_str("this initial RDP connection already sent its message")
-            }
             Self::TimedOut => formatter.write_str("RDP operation timed out"),
         }
     }
@@ -176,16 +172,11 @@ impl<'a, const MTU: usize> RdpListener<'a, MTU> {
 pub struct RdpConnection<'a, const MTU: usize> {
     resources: &'a RdpResources<MTU>,
     info: ConnectionInfo,
-    sent: bool,
 }
 
 impl<'a, const MTU: usize> RdpConnection<'a, MTU> {
     const fn new(resources: &'a RdpResources<MTU>, info: ConnectionInfo) -> Self {
-        Self {
-            resources,
-            info,
-            sent: false,
-        }
+        Self { resources, info }
     }
 
     pub const fn peer_address(&self) -> u16 {
@@ -200,12 +191,8 @@ impl<'a, const MTU: usize> RdpConnection<'a, MTU> {
         self.info.peer_port
     }
 
-    /// Sends the one DATA message supported by the initial profile and waits for its RDP ACK.
+    /// Sends one DATA message and waits for its RDP ACK.
     pub async fn send(&mut self, payload: &[u8]) -> Result<(), RdpError> {
-        if self.sent {
-            return Err(RdpError::MessageAlreadySent);
-        }
-
         let packet_len = HEADER_SIZE + payload.len() + RDP_TRAILER_SIZE;
         if packet_len > MTU {
             return Err(RdpError::Packet(Error::PacketTooLarge {
@@ -216,7 +203,6 @@ impl<'a, const MTU: usize> RdpConnection<'a, MTU> {
 
         let mut owned_payload = [0; MTU];
         owned_payload[..payload.len()].copy_from_slice(payload);
-        self.sent = true;
         self.resources
             .commands
             .send(RdpCommand::Send {

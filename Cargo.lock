@@ -785,6 +785,7 @@ name = "examples-std"
 version = "0.1.0"
 dependencies = [
  "critical-section",
+ "embassy-futures",
  "embassy-sync",
  "embassy-time",
  "env_logger",
@@ -1039,6 +1040,22 @@ dependencies = [
  "hash32 0.3.1",
  "serde_core",
  "stable_deref_trait",
+]
+
+[[package]]
+name = "host-sil"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "embassy-sync",
+ "embassy-time",
+ "env_logger",
+ "sat-core",
+ "sat-csp",
+ "sat-drivers",
+ "sat-subsystems",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -1500,6 +1517,8 @@ dependencies = [
  "embassy-sync",
  "futures",
  "log",
+ "test-utils",
+ "tokio",
 ]
 
 [[package]]

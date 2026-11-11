@@ -19,5 +19,9 @@ defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4", optional = true }
 
 [dev-dependencies]
+test_utils = { package = "test-utils", path = "../test-utils", default-features = false, features = ["std"] }
+
 critical-section = { version = "1.2.0", features = ["std"] }
+defmt = { version = "1.0.1", features = ["unstable-test"] }
 futures = { version = "0.3", features = ["executor"] }
+tokio = { version = "1", features = ["macros", "rt", "time"] }

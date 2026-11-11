@@ -5,5 +5,4 @@ pub mod mock {
     pub use phy::{RadioBand, UdpCspInterface};
 }
 pub mod payload_demo;
-pub mod peers;
 pub mod storage_demo;

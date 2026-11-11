@@ -188,7 +188,7 @@ fn lost_ack_retries_data_without_duplicate_delivery() {
 }
 
 #[test]
-fn one_message_each_way_uses_same_connection() {
+fn sequential_request_response_messages_use_same_connection() {
     let ((link_a, _control_a), (link_b, _control_b)) = fake_link_pair(8);
     let stack_a = StackResources::<MTU, 2, 1, 1>::new();
     let stack_b = StackResources::<MTU, 2, 1, 1>::new();
@@ -214,16 +214,16 @@ fn one_message_each_way_uses_same_connection() {
             let mut client_connection = client_connection.unwrap();
             let mut server_connection = server_connection.unwrap();
 
-            let (client_sent, server_sent) = join(
-                client_connection.send(b"command"),
-                server_connection.send(b"response"),
-            )
-            .await;
-            client_sent.unwrap();
-            server_sent.unwrap();
+            for (command, response) in [
+                (&b"first command"[..], &b"first response"[..]),
+                (&b"second command"[..], &b"second response"[..]),
+            ] {
+                client_connection.send(command).await.unwrap();
+                assert_eq!(server_connection.recv().await.payload(), command);
 
-            assert_eq!(client_connection.recv().await.payload(), b"response");
-            assert_eq!(server_connection.recv().await.payload(), b"command");
+                server_connection.send(response).await.unwrap();
+                assert_eq!(client_connection.recv().await.payload(), response);
+            }
         }
         .fuse();
 

@@ -4,15 +4,36 @@ name = "examples-std"
 edition = "2024"
 version = "0.1.0"
 
+ [[bin]]
+ name = "payload_tx"
+ path = "src/bin/payload_tx.rs"
+ required-features = ["payload"]
+
+ [[bin]]
+ name = "payload_rx"
+ path = "src/bin/payload_rx.rs"
+ required-features = ["payload"]
+
+ [[bin]]
+ name = "sat"
+ path = "src/bin/sat/main.rs"
+ required-features = ["subsystems"]
+
+ [[test]]
+ name = "payload_commands"
+ path = "tests/payload_commands.rs"
+ required-features = ["payload"]
 
 [dependencies]
+embassy-futures = "0.1.2"
 sat_core = { package = "sat-core", path = "../../core", default-features = false, features = ["log"] }
 sat_drivers = { package = "sat-drivers", path = "../../drivers", default-features = false, features = ["log"] }
 sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", default-features = false, features = ["log"] }
 sat_csp = { package = "sat-csp", path = "../../csp", default-features = false, features = ["log"] }
 test_utils = { package = "test-utils", path = "../../test-utils", default-features = false, features = ["std", "log"] }
+
 embassy-sync = "0.8.0"
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
-tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "sync"] }
+tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "io-std", "sync"] }
 env_logger = "0.11"
 critical-section = { version = "1.2.0", features = ["std"] }

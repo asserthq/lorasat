@@ -1,17 +1,16 @@
 [workspace]
 members = [
-    "csp",
     "core",
+    "csp",
     "drivers",
     "subsystems",
     "firmware",
-    "test-utils",
 
     "client-device",
     "ground-station",
 
-    # "sandbox-mcu",
-    # "sandbox-pc",
+    "host-sil",
+    "test-utils",
     "examples/*"
 ]
 

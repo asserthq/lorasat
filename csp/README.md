@@ -255,8 +255,8 @@ and shared mock/codecs are in `examples/std/src/csp_demo.rs`.
 3. Add SFP fragmentation for payloads larger than one CSP packet.
 4. Add separate radio scheduling/MAC policy where hardware requires it.
 
-RDP codec, handshake, one DATA/ACK, retransmission, and bounded timeout are
-implemented. No custom OPEN/READY/DONE wire protocol or session identifier is
+RDP codec, handshake, sequential DATA/ACK exchange, retransmission, and bounded
+timeout are implemented. No custom OPEN/READY/DONE wire protocol or session identifier is
 planned.
 
 ## Reference
