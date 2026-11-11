@@ -11,11 +11,14 @@ pub const TX_ADDRESS: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 25_051);
 pub const RX_ADDRESS: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 25_052);
+
 pub const TX_NODE: u16 = 2;
 pub const RX_NODE: u16 = 1;
 pub const COMMAND_PORT: u8 = 20;
-pub const TX_ENDPOINT: Endpoint = Endpoint::new(Address(TX_NODE as u32), COMMAND_PORT);
-pub const RX_ENDPOINT: Endpoint = Endpoint::new(Address(RX_NODE as u32), COMMAND_PORT);
+pub const TX_ENDPOINT: Endpoint =
+    Endpoint::new(Address::new_unicast(TX_NODE).unwrap(), COMMAND_PORT);
+pub const RX_ENDPOINT: Endpoint =
+    Endpoint::new(Address::new_unicast(RX_NODE).unwrap(), COMMAND_PORT);
 pub const SEND_INTERVAL: Duration = Duration::from_secs(1);
 pub const RESPONSE_TIMEOUT: Duration = Duration::from_secs(2);
 pub const MESSAGE_SIZE: usize = 6;
@@ -120,8 +123,11 @@ pub async fn serve_commands(
         println!("rx #{request_id}: received Ping; passing to PayloadSystem");
         io::stdout().flush()?;
         commands.send(PayloadCommand::Ping).await;
-        match events.receive().await {
-            PayloadEvent::Pong => {}
+        loop {
+            match events.receive().await {
+                PayloadEvent::Pong => break,
+                event => eprintln!("rx: payload event while waiting for Pong: {event:?}"),
+            }
         }
         socket
             .send_to(
