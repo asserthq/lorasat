@@ -795,6 +795,7 @@ dependencies = [
  "postcard",
  "sat-core",
  "sat-csp",
+ "sat-drivers",
  "sat-subsystems",
  "serde",
  "tokio",
