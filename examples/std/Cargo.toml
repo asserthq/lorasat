@@ -5,8 +5,8 @@ edition = "2024"
 version = "0.1.0"
 
 [features]
-payload = ["dep:sat_subsystems", "dep:embassy-sync"]
-subsystems = ["dep:sat_subsystems"]
+payload = []
+subsystems = []
 
 [[bin]]
 name = "payload_tx"
@@ -29,13 +29,14 @@ path = "tests/payload_commands.rs"
 required-features = ["payload"]
 
 [[test]]
-name = "comm_system"
-path = "tests/comm_system.rs"
+name = "cdh_system"
+path = "tests/cdh_system.rs"
 required-features = ["subsystems"]
 
 [dependencies]
 sat_core = { package = "sat-core", path = "../../core" }
-sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", features = ["log"] }
+sat_subsystems = { package = "sat-subsystems", path = "../../subsystems", default-features = false, features = ["log"] }
+sat_drivers = { package = "sat-drivers", path = "../../drivers" }
 sat_csp = { package = "sat-csp", path = "../../csp" }
 
 embassy-futures = "0.1.2"

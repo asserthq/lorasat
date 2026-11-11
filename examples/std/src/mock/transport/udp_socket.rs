@@ -27,6 +27,16 @@ impl UdpDatagramSocket {
 impl DatagramSocket for UdpDatagramSocket {
     type Error = MockNetError;
 
+    fn discard_oversized(&mut self, capacity: usize) -> Option<DatagramMetadata> {
+        let (source, payload) = self.pending.as_ref()?;
+        if payload.len() <= capacity {
+            return None;
+        }
+        let metadata = DatagramMetadata::new(*source, payload.len());
+        self.pending = None;
+        Some(metadata)
+    }
+
     async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error> {
         if payload.len() > MAX_DATAGRAM_SIZE {
             return Err(MockNetError::MessageTooLarge {
@@ -119,6 +129,37 @@ mod tests {
         let mut large = [0_u8; 64];
         let metadata = receiver.recv_from(&mut large).await.unwrap();
         assert_eq!(&large[..metadata.length()], b"message larger than buffer");
+    }
+
+    #[tokio::test]
+    async fn explicit_discard_drops_only_oversized_pending_datagrams() {
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            let source = Endpoint::new(Address::new_unicast(777).unwrap(), 11);
+            let mut receiver = UdpDatagramSocket {
+                socket: UdpSocket::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+                    .await
+                    .unwrap(),
+                broadcast_peers: Vec::new(),
+                receive_buffer: vec![0; MAX_DATAGRAM_SIZE],
+                pending: Some((source, vec![0; 257])),
+            };
+            assert_eq!(receiver.discard_oversized(257), None);
+            assert!(receiver.pending.is_some());
+            assert_eq!(
+                receiver.discard_oversized(256),
+                Some(DatagramMetadata::new(source, 257))
+            );
+            assert!(receiver.pending.is_none());
+            assert_eq!(receiver.discard_oversized(256), None);
+            receiver.pending = Some((source, b"valid".to_vec()));
+            assert_eq!(receiver.discard_oversized(256), None);
+            let mut buffer = [0; 256];
+            let metadata = receiver.recv_from(&mut buffer).await.unwrap();
+            assert_eq!(metadata.source(), source);
+            assert_eq!(&buffer[..metadata.length()], b"valid");
+        })
+        .await
+        .expect("pending datagram discard test timed out");
     }
 
     #[tokio::test]

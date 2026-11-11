@@ -29,6 +29,7 @@ embedded-io-async = "0.7"
 embassy-sync = { version = "0.8.0", features = ["defmt"]}
 
 [target.'cfg(not(target_os = "none"))'.dev-dependencies]
+embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 critical-section = { version = "1.2.0", features = ["std"] }
 defmt = { version = "1.0.1", features = ["unstable-test"] }
 

@@ -51,4 +51,8 @@ pub trait DatagramSocket {
     async fn send_to(&mut self, destination: Endpoint, payload: &[u8]) -> Result<(), Self::Error>;
 
     async fn recv_from(&mut self, buffer: &mut [u8]) -> Result<DatagramMetadata, Self::Error>;
+
+    fn discard_oversized(&mut self, _capacity: usize) -> Option<DatagramMetadata> {
+        None
+    }
 }
