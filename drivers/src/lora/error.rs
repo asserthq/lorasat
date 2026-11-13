@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq, defmt::Format)]
-pub enum Error {
+pub enum RadioError {
     CreateInterfaceVariant,
     CreateLora,
     CreateModulationParams,

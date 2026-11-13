@@ -1,5 +1,16 @@
 #![no_std]
 
+mod app;
+mod board;
+mod channels;
+mod config;
+mod devices;
+mod network;
+mod resources;
+mod tasks;
+
+pub use app::run;
+
 use defmt_rtt as _; // global logger
 
 use embassy_stm32 as _; // memory layout
