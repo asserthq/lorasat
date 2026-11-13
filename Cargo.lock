@@ -1961,6 +1961,7 @@ dependencies = [
  "embassy-time",
  "embedded-hal-bus",
  "heapless 0.9.3",
+ "nalgebra",
  "panic-probe",
  "postcard",
  "sat-core",

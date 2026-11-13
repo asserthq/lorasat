@@ -1,31 +1,24 @@
+use crate::link::WorkerHandle;
+
 // Подключаем тип ошибки подсистемы СОС.
 use super::error::AdcsError;
 
 // Duration нужен для задания интервала времени.
 use core::time::Duration;
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::{Receiver, Sender};
+use defmt_or_log::info;
+
 use embassy_time::Instant;
 // Vector3 — вектор из трёх чисел типа f32.
 // Здесь он используется для магнитного поля и управляющих сигналов катушек.
 use nalgebra::Vector3;
 
 // Импортируем интерфейсы и типы из ядра программы (core).
-use sat_core::adcs::{
-    //AdcSystem,     // Общий интерфейс подсистемы СОС.
-    AdcsCommand, // Команды, поступающие в СОС.
-    //AdcsEvent,     // События, которые СОС должна сообщать наружу.
-    AdcsMode,      // Режимы работы СОС: например, Idle и Detumbling.
-    BdotAlgorithm, // Алгоритм магнитной стабилизации B-dot.
-    Coils,         // Интерфейс управления магнитными катушками.
-    Mag,           // Интерфейс чтения магнитометра.
-};
+use sat_core::adcs::{AdcsCommand, AdcsEvent, AdcsMode, BdotAlgorithm, Coils, Mag};
 
 // Импортируем общий интерфейс задержки.
 use sat_core::time::Delay;
 
-type CommandRx = Receiver<'static, CriticalSectionRawMutex, AdcsCommand, 4>;
-type EventTx = Sender<'static, CriticalSectionRawMutex, AdcsEvent, 4>;
+type AdcsHandle<'a> = WorkerHandle<'a, AdcsCommand, AdcsEvent>;
 
 // Состояние системы ориентации и стабилизации.
 // Хранит текущий режим работы и последние значения, используемые алгоритмом.
@@ -42,34 +35,30 @@ pub struct AdcsState {
 // A — конкретный драйвер катушек, реализующий интерфейс Coils.
 // D — реализация задержки, соответствующая интерфейсу Delay.
 // Благодаря обобщениям ядро управления не зависит от конкретных моделей устройств.
-pub struct AdcSystemImpl<M: Mag, A: Coils, D: Delay> {
-    mag: M,                           // Объект для чтения магнитного поля.
-    coils: A,                         // Объект для управления катушками.
-    delay: D,                         // Объект для организации временных задержек.
-    state: AdcsState,                 // Текущее состояние СОС.
-    bdot: BdotAlgorithm,              // Экземпляр алгоритма B-dot.
-    pending_cmd: Option<AdcsCommand>, // Команда, ожидающая обработки; None означает её отсутствие.
+pub struct AdcsSystem<'a, M: Mag, A: Coils, D: Delay> {
+    mag: M,              // Объект для чтения магнитного поля.
+    coils: A,            // Объект для управления катушками.
+    delay: D,            // Объект для организации временных задержек.
+    state: AdcsState,    // Текущее состояние СОС.
+    bdot: BdotAlgorithm, // Экземпляр алгоритма B-dot.
     dt: Option<u64>,
     prev_measurement_time: Option<Instant>,
-    rx: CommandRx,
-    tx: EventTx,
+    handle: AdcsHandle<'a>,
 }
 
 // Реализуем методы для работы подсистемы СОС.
-impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
+impl<'a, M: Mag, A: Coils, D: Delay> AdcsSystem<'a, M, A, D> {
     // Создаёт экземпляр СОС и принимает необходимые аппаратные компоненты.
-    pub fn new(mag: M, coils: A, delay: D, rx: CommandRx) -> Self {
+    pub fn new(mag: M, coils: A, delay: D, handle: AdcsHandle<'a>) -> Self {
         Self {
             mag,                           // Сохраняем переданный магнитометр.
             coils,                         // Сохраняем драйвер катушек.
             delay,                         // Сохраняем механизм задержки.
             state: AdcsState::default(),   // Инициализируем состояние значениями по умолчанию.
             bdot: BdotAlgorithm::new(1.0), // Создаём алгоритм B-dot. 1.0 - нужно рассчитать коэффициент
-            pending_cmd: None,             // Пока нет ожидающих команд.
             dt: None,
             prev_measurement_time: None,
-            rx,
-            tx,
+            handle,
         }
     }
 
@@ -84,22 +73,16 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
         }
     }
 
-    // Сохраняет команду для последующей обработки главным циклом.
-    // Если вызвать этот метод несколько раз до обработки, новая команда
-    // заменит предыдущую, поскольку хранится только один Option<AdcsCommand>.
-    pub fn send_command(&mut self, cmd: AdcsCommand) {
-        self.pending_cmd = Some(cmd);
-    }
-
     // Читает магнитное поле и сохраняет результат в состоянии СОС.
     async fn read_sensors(&mut self) {
-        let b = self.mag.read().await;
+        let b = self.mag.read().await.unwrap();
         let now = Instant::now();
         self.dt = self
             .prev_measurement_time
             .map(|prev| (now - prev).as_micros());
         self.prev_measurement_time = Some(now);
-        self.state.outer_b = b?;
+        self.state.outer_b = b;
+        self.handle.event_tx.send(AdcsEvent::MeasuredB(b)).await;
     }
 
     // Рассчитывает и применяет управление в зависимости от режима СОС.
@@ -140,16 +123,17 @@ impl<M: Mag, A: Coils, D: Delay> AdcSystemImpl<M, A, D> {
 
     // Проверяет наличие ожидающей команды и выполняет её.
     async fn handle_commands(&mut self) {
-        // take() извлекает команду из Option и одновременно заменяет значение на None.
-        if let Some(cmd) = self.pending_cmd.take() {
-            // Определяем тип полученной команды.
-            match cmd {
-                // Команда смены режима работы СОС.
-                AdcsCommand::SetMode(mode) => self.set_mode(mode),
-            }
+        // Тестовый вариант, для сложных и долгих команд не подходит.
+        // Если между вызовами этого метода придет слишком много команд, то часть может быть потеряна
+        // из-за переполнения канала команд
+        while let Ok(cmd) = self.handle.cmd_rx.try_receive() {
+            info!("handle command: {:?}", cmd);
 
-            // Эта строка избыточна: после take() pending_cmd уже равен None.
-            self.pending_cmd = None;
+            match cmd {
+                AdcsCommand::SetMode(mode) => {
+                    self.set_mode(mode);
+                }
+            }
         }
     }
 

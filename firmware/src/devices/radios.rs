@@ -15,9 +15,12 @@ pub(crate) struct Radios {
     pub service: RadioSx1262,
 }
 
-pub(crate) async fn init(platform: RadioParts, service: RadioParts) -> Result<Radios, RadioError> {
-    let command = init_one(platform, radio::PLATFORM).await?;
-    let client = init_one(service, radio::SERVICE).await?;
+pub(crate) async fn init(
+    platform_parts: RadioParts,
+    service_parts: RadioParts,
+) -> Result<Radios, RadioError> {
+    let platform = init_one(platform_parts, radio::PLATFORM).await?;
+    let service = init_one(service_parts, radio::SERVICE).await?;
 
     Ok(Radios { platform, service })
 }

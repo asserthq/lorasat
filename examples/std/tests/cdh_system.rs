@@ -12,7 +12,7 @@ use sat_core::{
     protocol::{Beacon, GroundCommand, GroundCommandResponse},
 };
 use sat_drivers::storage::RamStorage;
-use sat_subsystems::cdh::{CdhConfig, CdhSystem, SubsystemLink, SubsystemsBundle};
+use sat_subsystems::cdh::{CdhConfig, CdhSystem, ControllerHandles, SubsystemMasterLink};
 use test_utils::host::net::{TcpSessionConnector, TcpSessionListener, UdpDatagramSocket};
 
 const SATELLITE: Address = Address::new_unicast(601).unwrap();
@@ -34,12 +34,12 @@ async fn cdh_works_without_csp_stack() {
     let ground_listener = TcpSessionListener::bind(Endpoint::new(SATELLITE, COMMAND_PORT))
         .await
         .unwrap();
-    let subsystems = SubsystemsBundle {
-        adcs: SubsystemLink {
+    let subsystems = ControllerHandles {
+        adcs: SubsystemMasterLink {
             cmd_tx: ADCS_COMMANDS.sender(),
             event_rx: ADCS_EVENTS.subscriber().unwrap(),
         },
-        eps: SubsystemLink {
+        eps: SubsystemMasterLink {
             cmd_tx: EPS_COMMANDS.sender(),
             event_rx: EPS_EVENTS.subscriber().unwrap(),
         },

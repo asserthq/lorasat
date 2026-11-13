@@ -1,8 +1,5 @@
 use defmt_or_log::info;
-use embassy_futures::select::{Either, select};
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex, channel::Sender, pubsub::Subscriber,
-};
+use embassy_futures::select::{Either4, select4};
 use embassy_time::{Instant, Ticker};
 use sat_core::{
     adcs::{AdcsCommand, AdcsEvent},
@@ -12,22 +9,19 @@ use sat_core::{
     storage::QueueStorage,
 };
 
-use crate::cdh::config::CdhConfig;
+use crate::{
+    cdh::config::CdhConfig,
+    link::ControllerHandle,
+    payload::{PayloadCommand, PayloadEvent},
+};
 
-type CmdSender<C> = Sender<'static, CriticalSectionRawMutex, C, 4>;
-type EventSub<E> = Subscriber<'static, CriticalSectionRawMutex, E, 4, 4, 4>;
-
-pub struct SubsystemLink<Cmd: 'static, Event: Clone + 'static> {
-    pub cmd_tx: CmdSender<Cmd>,
-    pub event_rx: EventSub<Event>,
+pub struct ControllerHandles<'a> {
+    pub adcs: ControllerHandle<'a, AdcsCommand, AdcsEvent>,
+    pub eps: ControllerHandle<'a, EpsCommand, EpsEvent>,
+    pub service: ControllerHandle<'a, PayloadCommand, PayloadEvent>,
 }
 
-pub struct SubsystemsBundle {
-    pub adcs: SubsystemLink<AdcsCommand, AdcsEvent>,
-    pub eps: SubsystemLink<EpsCommand, EpsEvent>,
-}
-
-pub struct CdhSystem<BeaconS, GroundL, PlatformQ, IotQ>
+pub struct CdhSystem<'a, BeaconS, GroundL, PlatformQ, IotQ>
 where
     BeaconS: DatagramSocket,
     GroundL: SessionListener,
@@ -35,14 +29,14 @@ where
     IotQ: QueueStorage,
 {
     config: CdhConfig,
-    subsystems: SubsystemsBundle,
+    subsystems: ControllerHandles<'a>,
     beacon_socket: BeaconS,
     ground_listener: GroundL,
     platform_storage: PlatformQ,
     iot_storage: IotQ,
 }
 
-impl<BeaconS, GroundL, PlatformQ, IotQ> CdhSystem<BeaconS, GroundL, PlatformQ, IotQ>
+impl<'a, BeaconS, GroundL, PlatformQ, IotQ> CdhSystem<'a, BeaconS, GroundL, PlatformQ, IotQ>
 where
     BeaconS: DatagramSocket,
     GroundL: SessionListener,
@@ -51,7 +45,7 @@ where
 {
     pub fn new(
         config: CdhConfig,
-        subsystems: SubsystemsBundle,
+        subsystems: ControllerHandles<'a>,
         beacon_socket: BeaconS,
         ground_listener: GroundL,
         platform_storage: PlatformQ,
@@ -71,16 +65,23 @@ where
         let mut beacon_ticker = Ticker::every(self.config.beacon_interval);
 
         loop {
-            let branch = select(beacon_ticker.next(), self.ground_listener.accept()).await;
+            let branch = select4(
+                beacon_ticker.next(),
+                self.ground_listener.accept(),
+                self.subsystems.adcs.event_rx.receive(),
+                self.subsystems.eps.event_rx.receive(),
+            )
+            .await;
+
             match branch {
-                Either::First(_) => {
-                    self.send_beacon().await;
-                }
-                Either::Second(Ok(session)) => {
+                Either4::First(_) => self.send_beacon().await,
+                Either4::Second(Ok(session)) => {
                     self.handle_ground_session(session, &mut beacon_ticker)
                         .await;
                 }
-                Either::Second(Err(_)) => {}
+                Either4::Second(Err(_)) => {}
+                Either4::Third(_) => info!("[SAT::CDH] received ADCS event"),
+                Either4::Fourth(_) => info!("[SAT::CDH] received EPS event"),
             }
         }
     }
@@ -110,14 +111,23 @@ where
 
         info!("[SAT::CDH] accepted GS session");
 
-        loop {
-            let length = match select(beacon_ticker.next(), session.recv(&mut cmd_buf)).await {
-                Either::First(_) => {
-                    self.send_beacon().await;
-                    continue;
+        'session: loop {
+            let length = loop {
+                let branch = select4(
+                    beacon_ticker.next(),
+                    session.recv(&mut cmd_buf),
+                    self.subsystems.adcs.event_rx.receive(),
+                    self.subsystems.eps.event_rx.receive(),
+                )
+                .await;
+
+                match branch {
+                    Either4::First(_) => self.send_beacon().await,
+                    Either4::Second(Ok(length)) => break length,
+                    Either4::Second(Err(_)) => break 'session,
+                    Either4::Third(_) => info!("[SAT::CDH] received ADCS event"),
+                    Either4::Fourth(_) => info!("[SAT::CDH] received EPS event"),
                 }
-                Either::Second(Ok(length)) => length,
-                Either::Second(Err(_)) => break,
             };
 
             let response = match GroundCommand::decode(&cmd_buf[..length]) {

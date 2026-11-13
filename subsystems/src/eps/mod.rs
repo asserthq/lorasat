@@ -1,2 +1,2 @@
 mod eps;
-pub use eps::EpsImpl;
+pub use eps::EpsSystem;

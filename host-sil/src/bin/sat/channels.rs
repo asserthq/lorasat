@@ -5,7 +5,7 @@ use sat_core::{
     adcs::{AdcsCommand, AdcsEvent},
     eps::{EpsCommand, EpsEvent},
 };
-use sat_subsystems::cdh::{SubsystemLink, SubsystemsBundle};
+use sat_subsystems::cdh::{ControllerHandles, SubsystemMasterLink};
 
 const COMMAND_QUEUE_DEPTH: usize = 4;
 const EVENT_QUEUE_DEPTH: usize = 4;
@@ -34,13 +34,13 @@ static ADCS_EVENTS: AdcsEventChannel = AdcsEventChannel::new();
 static EPS_COMMANDS: EpsCommandChannel = EpsCommandChannel::new();
 static EPS_EVENTS: EpsEventChannel = EpsEventChannel::new();
 
-pub fn bundle() -> SubsystemsBundle {
-    SubsystemsBundle {
-        adcs: SubsystemLink {
+pub fn bundle() -> ControllerHandles {
+    ControllerHandles {
+        adcs: SubsystemMasterLink {
             cmd_tx: ADCS_COMMANDS.sender(),
             event_rx: ADCS_EVENTS.subscriber().unwrap(),
         },
-        eps: SubsystemLink {
+        eps: SubsystemMasterLink {
             cmd_tx: EPS_COMMANDS.sender(),
             event_rx: EPS_EVENTS.subscriber().unwrap(),
         },

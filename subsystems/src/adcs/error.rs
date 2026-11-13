@@ -1,5 +1,4 @@
-#[derive(Debug, PartialEq)]
-#[derive(defmt::Format)]
+#[derive(Debug, PartialEq, defmt::Format)]
 pub enum AdcsError {
     CoilsPwmError,
 }

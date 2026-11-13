@@ -30,6 +30,10 @@ pub mod radio {
     };
 }
 
+pub mod flash {
+    pub const SPI_FREQUENCY_KHZ: u32 = 200;
+}
+
 pub mod cdh {
     pub const BEACON_INTERVAL_SECS: u16 = 10;
 }
