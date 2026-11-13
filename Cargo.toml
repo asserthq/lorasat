@@ -24,6 +24,9 @@ default-members = [
     "firmware",
 ]
 
+[patch.crates-io]
+mmc5983_rs = { path = "vendor/mmc5983_rs" }
+
 # cargo build/run
 [profile.dev]
 # default is opt-level = '0', but that makes very
