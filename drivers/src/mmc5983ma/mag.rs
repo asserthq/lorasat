@@ -1,20 +1,27 @@
+use embedded_hal_async::delay::DelayNs;
+use embedded_hal_async::i2c::I2c;
 use mmc5983_rs::Mmc5983;
+use mmc5983_rs::interface::I2cInterface;
+use mmc5983_rs::mode::OneShot;
 use nalgebra::Vector3;
 
 use crate::mmc5983ma::error::MagError;
 
 pub struct MagMmc5983<I2C> {
-    sensor: Mmc5983<mmc5983_rs::interface::I2cInterface<I2C>, mmc5983_rs::mode::OneShot>,
+    sensor: Mmc5983<I2cInterface<I2C>, OneShot>,
 }
 
 impl<I2C> MagMmc5983<I2C>
 where
-    I2C: embedded_hal_async::i2c::I2c,
+    I2C: I2c,
 {
-    pub async fn new(i2c: I2C) -> Result<Self, MagError> {
+    pub async fn new<D: DelayNs>(i2c: I2C, delay: &mut D) -> Result<Self, MagError> {
         let mut sensor = Mmc5983::new_with_i2c(i2c);
 
-        sensor.init().await.map_err(|_| MagError::MagInitError)?;
+        sensor
+            .init_with_delay(delay)
+            .await
+            .map_err(|_| MagError::MagInitError)?;
 
         Ok(Self { sensor })
     }
