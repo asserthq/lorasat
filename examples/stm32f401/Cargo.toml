@@ -9,11 +9,6 @@ version = "0.1.0"
 name = "stm32f401_lib"
 harness = false
 
-[features]
-default = []
-# Opt in only after reserving the test region documented in IOT_HARDWARE_RU.md.
-iot-flash-write = []
-
 [dependencies]
 sat_core = { package = "sat-core", path = "../../core" }
 sat_drivers = { package = "sat-drivers", path = "../../drivers" }
@@ -48,3 +43,5 @@ lora-phy = "3.0.1"
 mmc5983_rs = { version = "0.0.1", features = ["async"] }
 embassy-sync = "0.8.0"
 veml6030 = {version = "1.0.0", features = ["async"] }
+bmi088-driver = { git = "https://github.com/holsatus/bmi088-driver.git", rev="13e1009" }
+embassy-embedded-hal = "0.6.0"

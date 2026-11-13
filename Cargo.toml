@@ -9,8 +9,6 @@ members = [
     "client-device",
     "ground-station",
 
-    # "sandbox-mcu",
-    # "sandbox-pc",
     "examples/*"
 ]
 
@@ -23,6 +21,9 @@ default-members = [
     "subsystems",
     "firmware",
 ]
+
+[patch.crates-io]
+mmc5983_rs = { path = "vendor/mmc5983_rs" }
 
 # cargo build/run
 [profile.dev]
