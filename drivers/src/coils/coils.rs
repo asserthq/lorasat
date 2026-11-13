@@ -3,8 +3,7 @@ use embedded_hal::{
     digital::{InputPin, OutputPin},
     pwm::SetDutyCycle,
 };
-use nalgebra::{ComplexField, Vector3};
-use nalgebra::Vector3;
+use nalgebra::{SimdComplexField, Vector3};
 use sat_core::adcs::Coils;
 
 use crate::coils::{UnusedPwm, error::CoilsError};
