@@ -1900,6 +1900,7 @@ dependencies = [
 name = "sat-drivers"
 version = "0.1.0"
 dependencies = [
+ "bmi088-driver",
  "critical-section",
  "defmt 1.1.1",
  "drv8833-driver",

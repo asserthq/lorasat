@@ -3,6 +3,7 @@
 #[cfg(test)]
 extern crate std;
 
+pub mod bmi088;
 pub mod flash;
 pub mod lora;
 pub mod storage;
