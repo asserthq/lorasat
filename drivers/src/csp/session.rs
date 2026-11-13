@@ -1,11 +1,5 @@
-use sat_core::net::{
-    Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession, SessionListener,
-};
-use sat_csp::{
-    Datagram, MAX_NODE_ID, MAX_PORT, RdpConnection, RdpError, RdpListener, RdpMessage,
-    RdpResources, SendError, Socket,
-};
-use tokio::time::{Duration, interval};
+use sat_core::net::{Address, Endpoint, ReliableSession, SessionListener};
+use sat_csp::{RdpConnection, RdpError, RdpListener, RdpMessage};
 
 #[derive(Debug)]
 pub enum CspRdpSessionError {
@@ -74,15 +68,5 @@ impl<'a, const MTU: usize> SessionListener for CspRdpListener<'a, MTU> {
             connection,
             pending: None,
         })
-    }
-}
-
-pub async fn run_rdp_clock<const MTU: usize>(resources: &RdpResources<MTU>) -> ! {
-    let mut now_ms = 0_u32;
-    let mut ticks = interval(Duration::from_millis(10));
-    loop {
-        ticks.tick().await;
-        now_ms = now_ms.wrapping_add(10);
-        resources.update_time(now_ms);
     }
 }

@@ -1,28 +1,5 @@
-use sat_core::net::{
-    Address, DatagramMetadata, DatagramSocket, Endpoint, ReliableSession, SessionListener,
-};
-use sat_csp::{
-    Datagram, MAX_NODE_ID, MAX_PORT, RdpConnection, RdpError, RdpListener, RdpMessage,
-    RdpResources, SendError, Socket,
-};
-use tokio::time::{Duration, interval};
-
-pub const MTU: usize = 255;
-pub const SATELLITE_ADDRESS: u16 = 1;
-pub const GROUND_ADDRESS: u16 = 2;
-pub const CLIENT_ADDRESS: u16 = 3;
-
-pub const BEACON_PORT: u8 = 10;
-pub const CLIENT_DATA_PORT: u8 = 11;
-pub const COMMAND_PORT: u8 = 20;
-
-pub const BEACON_INTERVAL_SECONDS: u16 = 10;
-pub const DUMP_COMMAND: &[u8] = b"dump";
-
-const BEACON_VERSION: u8 = 1;
-const BEACON_SIZE: usize = 13;
-const DUMP_VERSION: u8 = 1;
-const RDP_APPLICATION_MAX: usize = MTU - sat_csp::HEADER_SIZE - sat_csp::RDP_TRAILER_SIZE;
+use sat_core::net::{Address, DatagramMetadata, DatagramSocket, Endpoint};
+use sat_csp::{Datagram, MAX_NODE_ID, MAX_PORT, SendError, Socket};
 
 #[derive(Debug)]
 pub enum CspDatagramError {
@@ -83,57 +60,27 @@ impl<const MTU: usize, const TX_DEPTH: usize, const RX_DEPTH: usize> DatagramSoc
         }
 
         buffer[..length].copy_from_slice(datagram.payload());
-        Ok(DatagramMetadata::new(
-            Endpoint::new(
-                Address::new(datagram.source()).expect("CSP source address must be valid"),
-                datagram.source_port(),
-            ),
-            length,
-        ))
+        Ok(datagram_metadata(&datagram))
+    }
+
+    fn discard_oversized(&mut self, capacity: usize) -> Option<DatagramMetadata> {
+        let datagram = self.pending.as_ref()?;
+        if datagram.payload().len() <= capacity {
+            return None;
+        }
+
+        let metadata = datagram_metadata(datagram);
+        self.pending = None;
+        Some(metadata)
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Beacon {
-    pub satellite_address: u16,
-    pub unix_time_seconds: u64,
-    pub interval_seconds: u16,
-}
-
-pub fn unix_time_seconds() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn beacon_round_trip() {
-        let beacon = Beacon {
-            satellite_address: 42,
-            unix_time_seconds: 123_456,
-            interval_seconds: 10,
-        };
-        assert_eq!(Beacon::decode(&beacon.encode()), Ok(beacon));
-    }
-
-    #[test]
-    fn opaque_dump_round_trip() {
-        let records = vec![OpaqueRecord {
-            source: 3,
-            source_port: 10,
-            payload: b"unknown subscriber bytes".to_vec(),
-        }];
-        assert_eq!(
-            decode_dump(&encode_dump(&records)),
-            Ok(DumpResponse {
-                total_records: 1,
-                records,
-            })
-        );
-    }
+fn datagram_metadata<const MTU: usize>(datagram: &Datagram<MTU>) -> DatagramMetadata {
+    DatagramMetadata::new(
+        Endpoint::new(
+            Address::new(datagram.source()).expect("CSP source address must be valid"),
+            datagram.source_port(),
+        ),
+        datagram.payload().len(),
+    )
 }

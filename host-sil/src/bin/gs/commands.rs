@@ -1,6 +1,6 @@
 use std::{future::pending, io::Write};
 
-use examples_std::peers::{CMD_PORT, MTU, SAT_ADDR};
+use host_sil::config::{CMD_PORT, MTU, SAT_ADDR};
 use sat_core::protocol::{GroundCommand, GroundCommandResponse};
 use sat_csp::RdpClient;
 use tokio::io::{AsyncBufReadExt, BufReader};

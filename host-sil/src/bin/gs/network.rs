@@ -1,8 +1,6 @@
-use examples_std::{
-    csp_demo::CspDatagramSocket,
-    peers::{BEACON_PORT, GS_ADDR, MTU, SAT_ADDR},
-};
+use host_sil::config::{BEACON_PORT, GS_ADDR, MTU, SAT_ADDR};
 use sat_csp::{RdpClient, RdpConfig, RdpResources, Runner, RunnerBuilder, StackResources};
+use sat_drivers::csp::CspDatagramSocket;
 use test_utils::host::{RadioBand, UdpCspInterface};
 
 const TX_QUEUE_DEPTH: usize = 4;

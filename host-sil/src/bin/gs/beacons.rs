@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use examples_std::peers::SAT_ADDR;
+use host_sil::config::SAT_ADDR;
 use sat_core::{net::DatagramSocket, protocol::Beacon};
 
 const BEACON_BUFFER_SIZE: usize = 64;

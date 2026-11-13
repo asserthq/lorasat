@@ -2,7 +2,7 @@ mod beacons;
 mod commands;
 mod network;
 
-use examples_std::csp_demo::run_rdp_clock;
+use host_sil::rdp_clock;
 use network::{CspResources, CspStack, ReliableResources};
 
 #[tokio::main(flavor = "current_thread")]
@@ -22,6 +22,6 @@ async fn main() {
         result = runner.run() => panic!("CSP runner stopped: {result:?}"),
         _ = beacons::receive(beacon_socket) => unreachable!("beacon receiver stopped"),
         () = commands::run(command_client) => println!("ground: command input stopped"),
-        _ = run_rdp_clock(&reliable_resources) => unreachable!("RDP clock stopped"),
+        _ = rdp_clock::run(&reliable_resources) => unreachable!("RDP clock stopped"),
     }
 }
