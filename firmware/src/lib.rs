@@ -2,7 +2,6 @@
 
 mod app;
 mod board;
-mod channels;
 mod config;
 mod devices;
 mod network;

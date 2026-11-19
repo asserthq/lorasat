@@ -1,41 +1,50 @@
 use core::future::pending;
-use defmt::{info, warn};
+use defmt::info;
 
 use embassy_executor::Spawner;
 
 use crate::{
-    board::{self, BoardParts, FlashParts, SensorsParts},
-    channels::{self, WorkersHandles},
+    board::{self, BoardParts},
     devices::{adcs, radios},
+    resources::{
+        channels::{self, WorkersHandles},
+        shared_i2c::SharedI2cBuses,
+    },
     tasks,
 };
 
 pub async fn run(spawner: Spawner) -> ! {
     let BoardParts {
-        platform_radio,
-        service_radio,
-        flash: FlashParts { spi: flash_spi },
-        sensors: SensorsParts { i2c1, i2c2, i2c3 },
+        i2c,
+        radios,
+        flash,
+        coils,
     } = board::init();
 
-    let radios = radios::init(platform_radio, service_radio)
+    let i2c_shared = SharedI2cBuses::init(i2c);
+
+    let radio_devices = radios::init(radios)
         .await
         .expect("SX1262 initialization failed");
-    let adcs = adcs::init(i2c1)
+
+    let adcs_devices = adcs::init(&i2c_shared, coils)
         .await
         .expect("MMC5983MA initialization failed");
 
     info!("CDH, ADCS and EPS initialization complete");
-    warn!("ADCS coil outputs are disabled until PWM parts are added to the BSP");
 
-    let radios::Radios {
-        platform: command_radio,
+    let radios::RadioDevices {
+        platform: platform_radio,
         service: service_radio,
-    } = radios;
+    } = radio_devices;
+
     let adcs::AdcsDevices {
         magnetometer,
+        imu,
         coils,
-    } = adcs;
+        sun_sensors,
+    } = adcs_devices;
+
     let (controller_handles, worker_handles) = channels::split();
     let WorkersHandles {
         adcs: adcs_handle,
@@ -45,10 +54,17 @@ pub async fn run(spawner: Spawner) -> ! {
 
     // Retain resources whose tasks are not wired yet. Dropping their HAL
     // drivers would deinitialize the corresponding peripherals.
-    let _reserved = (service_radio, service_handle, flash_spi, i2c2, i2c3);
+    let _reserved = (
+        service_radio,
+        service_handle,
+        flash,
+        i2c_shared,
+        imu,
+        sun_sensors,
+    );
 
     spawner.spawn(
-        tasks::cdh::run(command_radio, controller_handles).expect("CDH task pool is available"),
+        tasks::cdh::run(platform_radio, controller_handles).expect("CDH task pool is available"),
     );
     spawner.spawn(
         tasks::adcs::run(magnetometer, coils, adcs_handle).expect("ADCS task pool is available"),

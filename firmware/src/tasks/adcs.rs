@@ -7,12 +7,12 @@ use sat_core::{
 };
 use sat_subsystems::{adcs::AdcsSystem, link::WorkerHandle};
 
-use crate::devices::adcs::{DisabledCoils, Magnetometer};
+use crate::devices::adcs::{BoardCoils, Magnetometer};
 
 #[embassy_executor::task]
 pub(crate) async fn run(
     magnetometer: Magnetometer,
-    coils: DisabledCoils,
+    coils: BoardCoils,
     handle: WorkerHandle<'static, AdcsCommand, AdcsEvent>,
 ) {
     let mut system = AdcsSystem::new(magnetometer, coils, EmbassyDelay, handle);

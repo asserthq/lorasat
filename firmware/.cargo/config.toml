@@ -3,7 +3,7 @@ runner = [
     "probe-rs",
     "run",
     "--chip",
-    "STM32F401RCTx",
+    "STM32F407VGTx",
     "--log-format=oneline"
 ]
 # If you have an nRF52, you might also want to add "--allow-erase-all" to the list

@@ -3,29 +3,26 @@ use embassy_time::Delay;
 use sat_drivers::lora::{RadioError, RadioSx1262 as GenericSx1262};
 
 use crate::{
-    board::{RadioParts, RadioSpiDevice},
+    board::{RadioParts, RadioSpiDevice, Sx1262Parts},
     config::radio,
 };
 
 pub(crate) type RadioSx1262 =
     GenericSx1262<RadioSpiDevice, Output<'static>, ExtiInput<'static, Async>, Delay>;
 
-pub(crate) struct Radios {
+pub(crate) struct RadioDevices {
     pub platform: RadioSx1262,
     pub service: RadioSx1262,
 }
 
-pub(crate) async fn init(
-    platform_parts: RadioParts,
-    service_parts: RadioParts,
-) -> Result<Radios, RadioError> {
-    let platform = init_one(platform_parts, radio::PLATFORM).await?;
-    let service = init_one(service_parts, radio::SERVICE).await?;
+pub(crate) async fn init(parts: RadioParts) -> Result<RadioDevices, RadioError> {
+    let platform = init_one(parts.platform, radio::PLATFORM).await?;
+    let service = init_one(parts.service, radio::SERVICE).await?;
 
-    Ok(Radios { platform, service })
+    Ok(RadioDevices { platform, service })
 }
 
-async fn init_one(parts: RadioParts, config: radio::Config) -> Result<RadioSx1262, RadioError> {
+async fn init_one(parts: Sx1262Parts, config: radio::Config) -> Result<RadioSx1262, RadioError> {
     RadioSx1262::new(
         parts.spi,
         parts.reset,

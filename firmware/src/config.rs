@@ -42,3 +42,7 @@ pub mod storage {
     pub const ENTRY_SIZE: usize = 300;
     pub const DEPTH: usize = 16;
 }
+
+pub mod coils {
+    pub const PWM_FREQUENCY_HZ: u32 = 20_000;
+}
