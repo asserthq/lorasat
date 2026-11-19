@@ -410,14 +410,34 @@ async fn payload_stores_client_records_over_csp_udp_and_preserves_full_fifo() {
             vec![],
             (0..maximum_csp_payload).map(|byte| byte as u8).collect(),
         ];
-        for index in contents.len()..16 {
-            contents.push(vec![index as u8, 0, 255]);
+        let record_overhead = client_record_codec::HEADER_SIZE + 4;
+        let pool_capacity = RamStorage::<MAX_CLIENT_RECORD_SIZE, 16>::CAPACITY_BYTES;
+        let mut remaining = pool_capacity
+            - contents
+                .iter()
+                .map(|bytes| bytes.len() + record_overhead)
+                .sum::<usize>();
+        while remaining > maximum_csp_payload + record_overhead {
+            contents.push(vec![contents.len() as u8; maximum_csp_payload]);
+            remaining -= maximum_csp_payload + record_overhead;
         }
+        assert!(remaining >= record_overhead);
+        contents.push(vec![contents.len() as u8; remaining - record_overhead]);
+        assert_eq!(
+            contents
+                .iter()
+                .map(|bytes| bytes.len() + record_overhead)
+                .sum::<usize>(),
+            pool_capacity
+        );
+        assert!(contents.len() > 16);
+        let stored_records = contents.len() as u64;
         let destination = Endpoint::new(Address::new_unicast(RX_NODE).unwrap(), CLIENT_DATA_PORT);
         let sources = [
             Endpoint::new(Address::new_unicast(TX_NODE).unwrap(), CLIENT_DATA_PORT),
             TX_ENDPOINT,
         ];
+        let last_source = sources[(contents.len() - 1) % sources.len()];
         let application = async {
             commands.send(PayloadCommand::GetState).await;
             assert_eq!(events.receive().await, PayloadEvent::State(initial));
@@ -446,12 +466,12 @@ async fn payload_stores_client_records_over_csp_udp_and_preserves_full_fifo() {
             let PayloadEvent::State(full) = events.receive().await else {
                 panic!("expected state after filling FIFO");
             };
-            assert_eq!(full.received_datagrams, 16);
-            assert_eq!(full.stored_records, 16);
+            assert_eq!(full.received_datagrams, stored_records);
+            assert_eq!(full.stored_records, stored_records);
             assert_eq!(full.rejected_records, 0);
             assert_eq!(full.storage_errors, 0);
             assert_eq!(full.receive_errors, 0);
-            assert_eq!(full.last_client, Some(sources[1]));
+            assert_eq!(full.last_client, Some(last_source));
             for (index, bytes) in [vec![254, 0, 255], vec![]].iter().enumerate() {
                 let sender = if index % 2 == 0 {
                     &mut data_sender
@@ -467,13 +487,16 @@ async fn payload_stores_client_records_over_csp_udp_and_preserves_full_fifo() {
                         reason: ClientRecordRejection::Storage(QueueErrorKind::Full),
                     }
                 );
-                assert_eq!(accepted.borrow().len(), 16);
+                assert_eq!(accepted.borrow().len(), contents.len());
                 commands.send(PayloadCommand::GetState).await;
                 let PayloadEvent::State(rejected) = events.receive().await else {
                     panic!("expected state after FIFO rejection");
                 };
-                assert_eq!(rejected.received_datagrams, 17 + index as u64);
-                assert_eq!(rejected.stored_records, 16);
+                assert_eq!(
+                    rejected.received_datagrams,
+                    stored_records + 1 + index as u64
+                );
+                assert_eq!(rejected.stored_records, stored_records);
                 assert_eq!(rejected.rejected_records, 1 + index as u64);
                 assert_eq!(rejected.storage_errors, 1 + index as u64);
                 assert_eq!(rejected.last_client, full.last_client);
@@ -484,13 +507,13 @@ async fn payload_stores_client_records_over_csp_udp_and_preserves_full_fifo() {
             let PayloadEvent::State(state) = events.receive().await else {
                 panic!("expected state after rejecting records");
             };
-            assert_eq!(state.received_datagrams, 18);
-            assert_eq!(state.stored_records, 16);
+            assert_eq!(state.received_datagrams, stored_records + 2);
+            assert_eq!(state.stored_records, stored_records);
             assert_eq!(state.rejected_records, 2);
             assert_eq!(state.storage_errors, 2);
             assert_eq!(state.receive_errors, 0);
             assert_eq!(state.dropped_notifications, 0);
-            assert_eq!(state.last_client, Some(sources[1]));
+            assert_eq!(state.last_client, Some(last_source));
             (state, received_windows)
         };
         let (state, received_windows) = tokio::select! {
@@ -501,9 +524,9 @@ async fn payload_stores_client_records_over_csp_udp_and_preserves_full_fifo() {
         };
         assert_eq!(*payload.state(), state);
         drop(payload);
-        assert_eq!(ram.len(), 16);
+        assert_eq!(ram.len(), contents.len());
         let records = accepted.borrow().clone();
-        assert_eq!(records.len(), 16);
+        assert_eq!(records.len(), contents.len());
         let mut previous_timestamp = 0;
         let mut buffer = [0; MAX_CLIENT_RECORD_SIZE];
         for (index, encoded) in records.iter().enumerate() {

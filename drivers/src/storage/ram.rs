@@ -1,35 +1,153 @@
-use heapless::{Deque, Vec};
+use heapless::Vec;
 use sat_core::storage::{Key, MapStorage, QueueErrorKind, QueueMetadata, QueueStorage};
 
 use super::StorageError;
 
-pub struct RamStorage<const ENTRY_SIZE: usize, const DEPTH: usize> {
-    entries: Deque<Vec<u8, ENTRY_SIZE>, DEPTH>,
+const LENGTH_SIZE: usize = core::mem::size_of::<u32>();
+
+struct RamBlock<const ENTRY_SIZE: usize> {
+    data: [u8; ENTRY_SIZE],
+    overhead: [u8; LENGTH_SIZE],
 }
 
-impl<const ENTRY_SIZE: usize, const DEPTH: usize> RamStorage<ENTRY_SIZE, DEPTH> {
-    pub const fn new() -> Self {
+impl<const ENTRY_SIZE: usize> RamBlock<ENTRY_SIZE> {
+    const fn new() -> Self {
         Self {
-            entries: Deque::new(),
+            data: [0; ENTRY_SIZE],
+            overhead: [0; LENGTH_SIZE],
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RamStorageStats {
+    pub capacity_bytes: usize,
+    pub used_bytes: usize,
+    pub free_bytes: usize,
+    pub records: usize,
+}
+
+pub struct RamStorage<const ENTRY_SIZE: usize, const BLOCK_COUNT: usize> {
+    blocks: [RamBlock<ENTRY_SIZE>; BLOCK_COUNT],
+    head: usize,
+    used: usize,
+    records: usize,
+}
+
+impl<const ENTRY_SIZE: usize, const BLOCK_COUNT: usize> RamStorage<ENTRY_SIZE, BLOCK_COUNT> {
+    const BLOCK_SIZE: usize = ENTRY_SIZE + LENGTH_SIZE;
+    pub const CAPACITY_BYTES: usize = Self::BLOCK_SIZE * BLOCK_COUNT;
+
+    pub const fn new() -> Self {
+        assert!(
+            ENTRY_SIZE <= u32::MAX as usize,
+            "RAM entry length must fit a u32"
+        );
+        let _ = Self::CAPACITY_BYTES;
+        Self {
+            blocks: [const { RamBlock::<ENTRY_SIZE>::new() }; BLOCK_COUNT],
+            head: 0,
+            used: 0,
+            records: 0,
         }
     }
 
     pub fn len(&self) -> usize {
-        self.entries.len()
+        self.records
     }
 
     pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.records == 0
+    }
+
+    pub fn stats(&self) -> RamStorageStats {
+        RamStorageStats {
+            capacity_bytes: Self::CAPACITY_BYTES,
+            used_bytes: self.used,
+            free_bytes: Self::CAPACITY_BYTES - self.used,
+            records: self.records,
+        }
+    }
+
+    fn advance(position: usize, length: usize) -> usize {
+        let remaining = Self::CAPACITY_BYTES - position;
+        if length < remaining {
+            position + length
+        } else {
+            length - remaining
+        }
+    }
+
+    fn segment(&self, position: usize) -> &[u8] {
+        let block = &self.blocks[position / Self::BLOCK_SIZE];
+        let offset = position % Self::BLOCK_SIZE;
+        if offset < ENTRY_SIZE {
+            &block.data[offset..]
+        } else {
+            &block.overhead[offset - ENTRY_SIZE..]
+        }
+    }
+
+    fn segment_mut(&mut self, position: usize) -> &mut [u8] {
+        let block = &mut self.blocks[position / Self::BLOCK_SIZE];
+        let offset = position % Self::BLOCK_SIZE;
+        if offset < ENTRY_SIZE {
+            &mut block.data[offset..]
+        } else {
+            &mut block.overhead[offset - ENTRY_SIZE..]
+        }
+    }
+
+    fn write_at(&mut self, mut position: usize, mut bytes: &[u8]) {
+        while !bytes.is_empty() {
+            let target = self.segment_mut(position);
+            let copied = bytes.len().min(target.len());
+            target[..copied].copy_from_slice(&bytes[..copied]);
+            bytes = &bytes[copied..];
+            position = Self::advance(position, copied);
+        }
+    }
+
+    fn read_at(&self, mut position: usize, mut buffer: &mut [u8]) {
+        while !buffer.is_empty() {
+            let source = self.segment(position);
+            let copied = buffer.len().min(source.len());
+            let (part, remaining) = buffer.split_at_mut(copied);
+            part.copy_from_slice(&source[..copied]);
+            buffer = remaining;
+            position = Self::advance(position, copied);
+        }
+    }
+
+    fn front_length(&self) -> Result<Option<usize>, StorageError> {
+        if self.is_empty() {
+            return Ok(None);
+        }
+        if self.used < LENGTH_SIZE {
+            return Err(StorageError::CorruptEntry);
+        }
+        let mut header = [0; LENGTH_SIZE];
+        self.read_at(self.head, &mut header);
+        let length =
+            usize::try_from(u32::from_le_bytes(header)).map_err(|_| StorageError::CorruptEntry)?;
+        if length > ENTRY_SIZE || length > self.used - LENGTH_SIZE {
+            return Err(StorageError::CorruptEntry);
+        }
+        Ok(Some(length))
     }
 }
 
-impl<const ENTRY_SIZE: usize, const DEPTH: usize> Default for RamStorage<ENTRY_SIZE, DEPTH> {
+impl<const ENTRY_SIZE: usize, const BLOCK_COUNT: usize> Default
+    for RamStorage<ENTRY_SIZE, BLOCK_COUNT>
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const ENTRY_SIZE: usize, const DEPTH: usize> QueueStorage for RamStorage<ENTRY_SIZE, DEPTH> {
+impl<const ENTRY_SIZE: usize, const BLOCK_COUNT: usize> QueueStorage
+    for RamStorage<ENTRY_SIZE, BLOCK_COUNT>
+{
     type Error = StorageError;
 
     fn max_entry_size(&self) -> Option<usize> {
@@ -48,36 +166,57 @@ impl<const ENTRY_SIZE: usize, const DEPTH: usize> QueueStorage for RamStorage<EN
     }
 
     async fn append(&mut self, entry: &[u8]) -> Result<(), Self::Error> {
-        let entry = Vec::from_slice(entry).map_err(|_| StorageError::EntryTooLong {
-            length: entry.len(),
-            maximum: ENTRY_SIZE,
-        })?;
-        self.entries
-            .push_back(entry)
-            .map_err(|_| StorageError::Full)
+        if entry.len() > ENTRY_SIZE {
+            return Err(StorageError::EntryTooLong {
+                length: entry.len(),
+                maximum: ENTRY_SIZE,
+            });
+        }
+        let required = LENGTH_SIZE + entry.len();
+        if required > Self::CAPACITY_BYTES - self.used {
+            return Err(StorageError::Full);
+        }
+
+        let tail = Self::advance(self.head, self.used);
+        self.write_at(tail, &(entry.len() as u32).to_le_bytes());
+        self.write_at(Self::advance(tail, LENGTH_SIZE), entry);
+        self.used += required;
+        self.records += 1;
+        Ok(())
     }
 
     async fn peek(&mut self, buffer: &mut [u8]) -> Result<Option<QueueMetadata>, Self::Error> {
-        let Some(entry) = self.entries.front() else {
+        let Some(length) = self.front_length()? else {
             return Ok(None);
         };
-        if buffer.len() < entry.len() {
+        if buffer.len() < length {
             return Err(StorageError::BufferTooSmall {
                 length: buffer.len(),
-                required: entry.len(),
+                required: length,
             });
         }
-
-        buffer[..entry.len()].copy_from_slice(entry);
-        Ok(Some(QueueMetadata::new(entry.len())))
+        self.read_at(Self::advance(self.head, LENGTH_SIZE), &mut buffer[..length]);
+        Ok(Some(QueueMetadata::new(length)))
     }
 
     async fn pop(&mut self) -> Result<bool, Self::Error> {
-        Ok(self.entries.pop_front().is_some())
+        let Some(length) = self.front_length()? else {
+            return Ok(false);
+        };
+        let consumed = LENGTH_SIZE + length;
+        self.head = Self::advance(self.head, consumed);
+        self.used -= consumed;
+        self.records -= 1;
+        if self.is_empty() {
+            self.head = 0;
+        }
+        Ok(true)
     }
 
     async fn clear(&mut self) -> Result<(), Self::Error> {
-        self.entries.clear();
+        self.head = 0;
+        self.used = 0;
+        self.records = 0;
         Ok(())
     }
 }

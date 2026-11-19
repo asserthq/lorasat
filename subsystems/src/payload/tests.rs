@@ -1246,6 +1246,7 @@ fn stalled_send_services_commands_and_receiver_without_recreating_send_future() 
         RamStorage::<272, 2>::new(),
     );
     beacon_trace.blocked.set(true);
+    let client_payload = [0xa5; 256];
     let replacement = replacement_config();
     let now = Rc::new(Cell::new(0));
     let mut timer = FakeTimer(now.clone());
@@ -1280,19 +1281,19 @@ fn stalled_send_services_commands_and_receiver_without_recreating_send_future() 
             assert_eq!(beacon_trace.completed.get(), 0);
         }
         for (seconds, response) in [
-            (15, stored(client_source(), 11)),
-            (18, stored(client_source(), 11)),
+            (15, stored(client_source(), client_payload.len())),
+            (18, stored(client_source(), client_payload.len())),
             (
                 21,
                 rejected(
                     client_source(),
-                    11,
+                    client_payload.len(),
                     ClientRecordRejection::Storage(QueueErrorKind::Full),
                 ),
             ),
         ] {
             now.set(seconds * 1_000_000);
-            receive.packet(client_source(), b"independent");
+            receive.packet(client_source(), &client_payload);
             drive(future.as_mut());
             assert_eq!(events.try_receive(), Ok(response));
             assert_attempt_count(&beacon_trace, 1);
@@ -1346,13 +1347,13 @@ fn stalled_send_services_commands_and_receiver_without_recreating_send_future() 
         &mut payload.storage,
         client_source(),
         15_000,
-        b"independent",
+        &client_payload,
     );
     assert_client_record(
         &mut payload.storage,
         client_source(),
         18_000,
-        b"independent",
+        &client_payload,
     );
 }
 
@@ -1853,9 +1854,11 @@ fn client_queue_is_fifo_and_full_rejects_without_overwriting_or_changing_last_cl
         Endpoint::new(Address::new(42).unwrap(), 8),
         Endpoint::new(Address::new(43).unwrap(), 9),
     ];
+    let first = [0x11; 256];
+    let second = [0x22; 256];
     for (source, bytes) in sources
         .into_iter()
-        .zip([b"first".as_slice(), b"second", b"third"])
+        .zip([first.as_slice(), second.as_slice(), b"third"])
     {
         receive.packet(source, bytes);
     }
@@ -1864,8 +1867,8 @@ fn client_queue_is_fifo_and_full_rejects_without_overwriting_or_changing_last_cl
         let mut future = core::pin::pin!(payload.run_with_timer(&mut timer));
         drive(future.as_mut());
     }
-    assert_eq!(events.try_receive(), Ok(stored(sources[0], 5)));
-    assert_eq!(events.try_receive(), Ok(stored(sources[1], 6)));
+    assert_eq!(events.try_receive(), Ok(stored(sources[0], first.len())));
+    assert_eq!(events.try_receive(), Ok(stored(sources[1], second.len())));
     assert_eq!(
         events.try_receive(),
         Ok(rejected(
@@ -1887,8 +1890,8 @@ fn client_queue_is_fifo_and_full_rejects_without_overwriting_or_changing_last_cl
             ..PayloadState::new(config())
         }
     );
-    assert_client_record(&mut payload.storage, sources[0], 0, b"first");
-    assert_client_record(&mut payload.storage, sources[1], 0, b"second");
+    assert_client_record(&mut payload.storage, sources[0], 0, &first);
+    assert_client_record(&mut payload.storage, sources[1], 0, &second);
     assert!(payload.storage.is_empty());
 }
 
@@ -2234,14 +2237,7 @@ fn client_worker_yields_after_each_immediately_ready_record() {
     assert_eq!(trace.completed.get(), 3);
     assert_eq!(events.try_receive(), Ok(stored(client_source(), 0)));
     assert_eq!(events.try_receive(), Ok(stored(client_source(), 0)));
-    assert_eq!(
-        events.try_receive(),
-        Ok(rejected(
-            client_source(),
-            0,
-            ClientRecordRejection::Storage(QueueErrorKind::Full)
-        ))
-    );
+    assert_eq!(events.try_receive(), Ok(stored(client_source(), 0)));
 }
 
 #[test]

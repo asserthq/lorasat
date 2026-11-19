@@ -140,7 +140,7 @@ mod tests {
         let (mut sender, mut receiver, mut sender_runner, mut receiver_runner) =
             bind_pair(&sender_resources, &receiver_resources).await;
         run_pair(&mut sender_runner, &mut receiver_runner, async {
-            let mut storage = RamStorage::<32, 1>::new();
+            let mut storage = RamStorage::<8, 1>::new();
             let mut buffer = [0; RECEIVE_BUFFER_SIZE];
             sender
                 .send_to(RECEIVER_ENDPOINT, b"retained")

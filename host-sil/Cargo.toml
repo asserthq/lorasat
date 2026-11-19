@@ -14,4 +14,6 @@ embassy-sync = "0.8.0"
 embassy-time = { version = "0.5.1", features = ["std", "generic-queue-8"] }
 tokio = { version = "1", features = ["net", "time", "rt", "macros", "io-util", "io-std", "sync"] }
 env_logger = "0.11"
+serde = { version = "1.0.229", default-features = false, features = ["derive"] }
+postcard = { version = "1.1.3", default-features = false }
 critical-section = { version = "1.2.0", features = ["std"] }

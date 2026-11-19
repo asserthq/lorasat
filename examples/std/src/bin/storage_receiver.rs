@@ -27,7 +27,10 @@ async fn main() -> io::Result<()> {
     let mut runner = builder.build();
     println!("receiver: listening on CSP over UDP {RECEIVER_ADDRESS}; stop with Ctrl+C");
     println!("receiver: CSP node={RECEIVER_NODE}, port={RECEIVER_PORT}, MTU={MTU}");
-    println!("receiver: RAM FIFO capacity={QUEUE_DEPTH}, entry limit={ENTRY_SIZE} bytes");
+    println!(
+        "receiver: RAM FIFO blocks={QUEUE_DEPTH}, byte capacity={}, entry limit={ENTRY_SIZE} bytes; record count depends on length (4-byte overhead per record)",
+        RamStorage::<ENTRY_SIZE, QUEUE_DEPTH>::CAPACITY_BYTES,
+    );
     println!(
         "receiver: full queue rejects new records; stored records are never popped automatically"
     );

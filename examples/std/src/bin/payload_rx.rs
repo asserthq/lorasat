@@ -55,7 +55,8 @@ async fn main() -> io::Result<()> {
     println!("rx: ASP CSP/UDP carrier {RX_ADDRESS} simulates 868 MHz; stop with Ctrl+C");
     println!("rx: ASP broadcast beacons on CSP port {BEACON_PORT}, first after 10 s");
     println!(
-        "rx: client data on CSP port {CLIENT_DATA_PORT}: max payload {MAX_CLIENT_PAYLOAD_SIZE} bytes, max record {MAX_CLIENT_RECORD_SIZE} bytes, RAM FIFO depth 16 (no overwrite)"
+        "rx: client data on CSP port {CLIENT_DATA_PORT}: max payload {MAX_CLIENT_PAYLOAD_SIZE} bytes, max record {MAX_CLIENT_RECORD_SIZE} bytes, RAM FIFO blocks=16, byte capacity={} (no overwrite); record count depends on length (4-byte overhead per record)",
+        RamStorage::<MAX_CLIENT_RECORD_SIZE, 16>::CAPACITY_BYTES,
     );
     println!("rx: confirmations are sent only after PayloadSystem returns Pong");
     io::stdout().flush()?;

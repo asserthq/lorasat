@@ -1365,10 +1365,12 @@ dependencies = [
  "embassy-sync",
  "embassy-time",
  "env_logger",
+ "postcard",
  "sat-core",
  "sat-csp",
  "sat-drivers",
  "sat-subsystems",
+ "serde",
  "test-utils",
  "tokio",
 ]
